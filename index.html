@@ -1,74 +1,2015 @@
-Vessel Use Logger
-SECTION 179 · RECORDKEEPING
-📋 BULK ADD
-SAVE JSON
-LOAD JSON
-CSV
-XLS
-Log an Entry
-CLICK A DATE · PICK CATEGORY · SAVE
-DATE
-CATEGORY
-BUSINESS
-MAINTENANCE
-PERSONAL
-START TIME
-HOURS
-QUICK TAG
-          — optional —
-          Cabin cleaning & prep
-          Engine maintenance
-          Hull / topsides work
-          Rigging service
-          Electronics maintenance
-          Client charter
-          Business meeting aboard
-          Photography / media
-          Cruise / day sail
-          Delivery / passage
-        
-DESCRIPTION
-＋ ADD ENTRY
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vessel Use Logger — Section 179</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter+Tight:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0a2540;
+    --navy-soft: #1a3a5c;
+    --gold: #c9a227;
+    --bone: #f4ede0;
+    --paper: #faf6ed;
+    --ink: #0a1929;
+    --rust: #b45309;
+    --line: rgba(10, 37, 64, 0.12);
+    --shadow-lg: 0 4px 12px rgba(10,37,64,0.08), 0 24px 48px rgba(10,37,64,0.12);
 
-Google Calendar Sync
-AUTO-PULL BUSINESS
-Anything in your shared Google Calendar auto-imports as Business. Maintenance and Personal stay logged here directly.
-GOOGLE CALENDAR ICAL URL
-From Google Calendar settings → your calendar → "Integrate calendar" → "Secret address in iCal format"
-🔄 SYNC NOW
-CLEAR IMPORTS
+    --cat-business: #0e7490;
+    --cat-maintenance: #b45309;
+    --cat-personal: #4a7856;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter Tight', -apple-system, sans-serif;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  body {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(201,162,39,0.06), transparent 40%),
+      radial-gradient(circle at 100% 100%, rgba(14,116,144,0.05), transparent 40%),
+      var(--paper);
+  }
 
-Auto-sync when I open this page
+  .app { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+  header {
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(250, 246, 237, 0.85);
+    backdrop-filter: blur(12px);
+    z-index: 10;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: baseline; gap: 14px; }
+  .brand-mark {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--navy);
+    letter-spacing: -0.01em;
+  }
+  .brand-mark::before {
+    content: "⚓"; margin-right: 8px; color: var(--gold); font-size: 26px;
+  }
+  .brand-sub {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--navy-soft);
+    opacity: 0.75;
+  }
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+  .btn {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--navy);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--navy); color: var(--bone); border-color: var(--navy); }
+  .btn-primary { background: var(--navy); color: var(--bone); border-color: var(--navy); }
+  .btn-primary:hover { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+  .btn-gold { background: var(--gold); color: var(--navy); border-color: var(--gold); font-weight: 600; }
+  .btn-gold:hover { background: var(--navy); color: var(--gold); border-color: var(--navy); }
 
-Calendar Sharing
-TWO ONE-WAY FEEDS
-Logger is the source of truth. Two .ics files publish to your shared Google/Apple calendars: a full record for you, and a privacy-safe blocked-days feed for your assistant.
-FOR YOU / ACCOUNTANT
-⬇
-Full calendar — every entry with category, hours, description. Use for personal calendar overlay or tax records.
-⬇ DOWNLOAD FULL CALENDAR (.ICS)
-FOR ASSISTANT / SHARED CALENDAR
-⬇
-Maintenance + Personal days only, labeled "Boat Unavailable" (no detail revealed). Assistant subscribes to this and sees blocked days when scheduling charters.
-⬇ DOWNLOAD BLOCKED DAYS (.ICS)
-Setup once: Upload to a stable URL (iCloud Drive shared link, GitHub Gist, Dropbox), then have your assistant subscribe by URL in Google Calendar. Re-upload after each session to refresh.
+  main { display: grid; grid-template-columns: 480px 1fr; overflow: hidden; }
 
-Import from Calendar
-ONE-TIME
-If you have existing events in Google or Apple Calendar, import them once. They'll be auto-tagged Business (you can change any individually). Drag a .ics file anywhere on this page or click below.
-IMPORT .ICS FILE…
-November
-2025
-‹
-TODAY
-›
-BUSINESS
-0hrs
-MAINTENANCE
-0hrs
-PERSONAL
-0hrs
-BUSINESS USE
-—%
+  .panel {
+    background: var(--bone);
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    padding: 28px 32px 36px;
+  }
+  .panel-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .panel-subtitle {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--navy-soft);
+    opacity: 0.7;
+    margin-bottom: 24px;
+  }
+  .field { margin-bottom: 18px; }
+  .field-label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--navy);
+    font-weight: 600;
+    margin-bottom: 9px;
+  }
+  .input, .textarea, .select {
+    width: 100%;
+    padding: 13px 14px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 16px;
+    color: var(--ink);
+    border-radius: 2px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input:focus, .textarea:focus, .select:focus {
+    outline: none;
+    border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(10,37,64,0.08);
+  }
+  .textarea { resize: vertical; min-height: 70px; font-family: inherit; }
 
+  .category-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .cat-pill {
+    padding: 12px 8px;
+    text-align: center;
+    border: 1.5px solid var(--line);
+    background: var(--paper);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: var(--navy-soft);
+    user-select: none;
+  }
+  .cat-pill:hover { border-color: var(--navy); }
+  .cat-pill.active[data-cat="business"] { background: var(--cat-business); color: white; border-color: var(--cat-business); }
+  .cat-pill.active[data-cat="maintenance"] { background: var(--cat-maintenance); color: white; border-color: var(--cat-maintenance); }
+  .cat-pill.active[data-cat="personal"] { background: var(--cat-personal); color: white; border-color: var(--cat-personal); }
+
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .helper {
+    font-size: 13px;
+    color: var(--navy-soft);
+    opacity: 0.8;
+    margin-top: 8px;
+    font-style: italic;
+    line-height: 1.5;
+  }
+
+  .add-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--navy);
+    color: var(--bone);
+    border: none;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.18s;
+    margin-top: 8px;
+  }
+  .add-btn:hover { background: var(--gold); color: var(--navy); }
+
+  .divider {
+    height: 1px;
+    background: var(--line);
+    margin: 28px 0;
+    position: relative;
+  }
+  .divider::after {
+    content: "✦";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bone);
+    padding: 0 12px;
+    color: var(--gold);
+    font-size: 14px;
+  }
+
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .section-head h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .section-head .count {
+    font-size: 12px;
+    color: var(--navy-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .sync-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 16px;
+    border-radius: 2px;
+    margin-bottom: 12px;
+  }
+  .sync-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .sync-card-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .sync-card-arrow {
+    font-size: 14px;
+    color: var(--gold);
+  }
+  .sync-card-desc {
+    font-size: 13px;
+    color: var(--navy-soft);
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+
+  /* RIGHT CALENDAR */
+  .calendar-wrap { overflow-y: auto; padding: 28px 36px 36px; }
+  .cal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 22px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--navy);
+  }
+  .cal-title-block { display: flex; align-items: baseline; gap: 16px; }
+  .cal-month {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 48px;
+    font-weight: 600;
+    color: var(--navy);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .cal-year {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    font-weight: 400;
+    color: var(--gold);
+    font-style: italic;
+  }
+  .cal-nav { display: flex; gap: 8px; align-items: center; }
+  .nav-btn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--navy);
+    border-radius: 50%;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .nav-btn:hover { background: var(--navy); color: var(--bone); border-color: var(--navy); }
+
+  .cal-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-bottom: 24px;
+  }
+  .stat { background: var(--paper); padding: 16px 20px; }
+  .stat-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--navy-soft);
+    opacity: 0.7;
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 30px;
+    font-weight: 600;
+    color: var(--navy);
+    line-height: 1;
+  }
+  .stat-value.business { color: var(--cat-business); }
+  .stat-value.maintenance { color: var(--cat-maintenance); }
+  .stat-value.personal { color: var(--cat-personal); }
+  .stat-unit { font-size: 13px; color: var(--navy-soft); margin-left: 5px; font-style: italic; }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .dow {
+    background: var(--navy);
+    color: var(--bone);
+    text-align: center;
+    padding: 12px 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-weight: 500;
+  }
+  .day-cell {
+    background: var(--paper);
+    min-height: 120px;
+    padding: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .day-cell:hover { background: #fffbe8; }
+  .day-cell.other-month { background: rgba(10,37,64,0.02); }
+  .day-cell.other-month .day-num { color: rgba(10,37,64,0.25); }
+  .day-cell.today { background: linear-gradient(135deg, #fff8d6 0%, var(--paper) 60%); }
+  .day-cell.today .day-num { color: var(--gold); font-weight: 700; }
+  .day-cell.selected { box-shadow: inset 0 0 0 2px var(--navy); }
+  .day-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--navy);
+    line-height: 1;
+    margin-bottom: 3px;
+  }
+  .event {
+    font-size: 12px;
+    padding: 5px 7px;
+    border-left: 3px solid;
+    background: white;
+    color: var(--ink);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-radius: 1px;
+    cursor: pointer;
+    position: relative;
+    transition: padding-right 0.15s;
+  }
+  .event:hover { padding-right: 38px; }
+  .event-del {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: rgba(180,83,9,0.15);
+    color: var(--rust);
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .event:hover .event-del { display: flex; }
+  .event-del:hover { background: var(--rust); color: white; }
+  .event.business { border-left-color: var(--cat-business); background: rgba(14,116,144,0.08); color: var(--cat-business); }
+  .event.maintenance { border-left-color: var(--cat-maintenance); background: rgba(180,83,9,0.08); color: var(--cat-maintenance); }
+  .event.personal { border-left-color: var(--cat-personal); background: rgba(74,120,86,0.08); color: var(--cat-personal); }
+  .event .hrs { font-weight: 600; margin-right: 4px; }
+  .more-pill {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--navy-soft);
+    font-weight: 600;
+    padding: 2px 5px;
+    cursor: pointer;
+  }
+  .more-pill:hover { color: var(--navy); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,22,38,0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--paper);
+    width: 100%;
+    max-width: 580px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 32px 36px;
+    box-shadow: var(--shadow-lg);
+    border-radius: 2px;
+    border-top: 4px solid var(--gold);
+  }
+  .modal h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .modal-date {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--gold);
+    margin-bottom: 22px;
+    font-weight: 600;
+  }
+  .modal-event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+  .modal-event {
+    background: white;
+    border-left: 4px solid var(--navy-soft);
+    padding: 14px 16px;
+  }
+  .modal-event.business { border-left-color: var(--cat-business); }
+  .modal-event.maintenance { border-left-color: var(--cat-maintenance); }
+  .modal-event.personal { border-left-color: var(--cat-personal); }
+  .me-view { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .me-info { flex: 1; min-width: 0; }
+  .me-title {
+    font-weight: 500;
+    font-size: 16px;
+    color: var(--ink);
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+  .me-meta {
+    font-size: 12px;
+    color: var(--navy-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .me-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn {
+    background: none;
+    border: 1px solid var(--line);
+    width: 34px; height: 34px;
+    cursor: pointer;
+    border-radius: 2px;
+    color: var(--navy-soft);
+    transition: all 0.15s;
+    font-size: 15px;
+  }
+  .icon-btn:hover { background: var(--navy); color: var(--bone); border-color: var(--navy); }
+  .icon-btn.danger:hover { background: var(--rust); border-color: var(--rust); }
+
+  .me-edit { display: none; }
+  .modal-event.editing .me-view { display: none; }
+  .modal-event.editing .me-edit { display: block; }
+  .me-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .input-sm, .textarea-sm {
+    width: 100%;
+    padding: 10px 11px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+    border-radius: 2px;
+  }
+  .textarea-sm { resize: vertical; min-height: 56px; font-family: inherit; }
+  .me-edit-cats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .me-edit-cat {
+    padding: 8px 4px;
+    text-align: center;
+    border: 1.5px solid var(--line);
+    background: var(--paper);
+    cursor: pointer;
+    border-radius: 2px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: var(--navy-soft);
+    user-select: none;
+  }
+  .me-edit-cat:hover { border-color: var(--navy); }
+  .me-edit-cat.active[data-cat="business"] { background: var(--cat-business); color: white; border-color: var(--cat-business); }
+  .me-edit-cat.active[data-cat="maintenance"] { background: var(--cat-maintenance); color: white; border-color: var(--cat-maintenance); }
+  .me-edit-cat.active[data-cat="personal"] { background: var(--cat-personal); color: white; border-color: var(--cat-personal); }
+  .me-edit-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .btn-sm {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--navy);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .btn-sm:hover { background: var(--navy); color: var(--bone); }
+  .btn-sm.btn-save { background: var(--navy); color: var(--bone); border-color: var(--navy); }
+  .btn-sm.btn-save:hover { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--navy-soft);
+    font-style: italic;
+    font-size: 15px;
+    background: white;
+    border: 1px dashed var(--line);
+  }
+
+  /* Bulk-add modal */
+  .bulk-help {
+    background: white;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .bulk-help code {
+    background: var(--bone);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 12px;
+    color: var(--rust);
+  }
+  .bulk-textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    background: white;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    border-radius: 2px;
+    resize: vertical;
+  }
+  .bulk-preview {
+    margin-top: 14px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    background: white;
+    padding: 12px;
+    font-size: 13px;
+  }
+  .bulk-preview-row {
+    padding: 4px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .bulk-preview-row:last-child { border-bottom: none; }
+  .bulk-preview-row.invalid { color: var(--rust); font-style: italic; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--navy);
+    color: var(--bone);
+    padding: 14px 22px;
+    border-radius: 2px;
+    font-size: 14px;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(140%);
+    transition: transform 0.3s ease;
+    z-index: 200;
+    border-left: 4px solid var(--gold);
+  }
+  .toast.show { transform: translateY(0); }
+  .toast.error { border-left-color: var(--rust); }
+
+  .panel::-webkit-scrollbar, .calendar-wrap::-webkit-scrollbar, .modal::-webkit-scrollbar { width: 8px; }
+  .panel::-webkit-scrollbar-thumb, .calendar-wrap::-webkit-scrollbar-thumb, .modal::-webkit-scrollbar-thumb {
+    background: rgba(10,37,64,0.2);
+    border-radius: 4px;
+  }
+
+  @media (max-width: 980px) {
+    main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .panel { border-right: none; border-bottom: 1px solid var(--line); max-height: 55vh; }
+    .cal-month { font-size: 36px; }
+    .cal-year { font-size: 24px; }
+    .day-cell { min-height: 80px; }
+    .cal-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="brand-mark">Vessel Use Logger</div>
+      <div class="brand-sub">Section 179 · Recordkeeping</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="btn-bulk">📋 Bulk Add</button>
+      <button class="btn" id="btn-save-json" title="Backup to file">Save JSON</button>
+      <button class="btn" id="btn-load-json" title="Load backup">Load JSON</button>
+      <button class="btn" id="btn-export-csv">CSV</button>
+      <button class="btn btn-gold" id="btn-export-xls">XLS</button>
+    </div>
+  </header>
+
+  <main>
+    <aside class="panel">
+      <div class="panel-title">Log an Entry</div>
+      <div class="panel-subtitle">Click a date · pick category · save</div>
+
+      <div class="field">
+        <label class="field-label">Date</label>
+        <input type="date" class="input" id="entry-date" />
+      </div>
+
+      <div class="field">
+        <label class="field-label">Category</label>
+        <div class="category-row">
+          <div class="cat-pill" data-cat="business">Business</div>
+          <div class="cat-pill" data-cat="maintenance">Maintenance</div>
+          <div class="cat-pill" data-cat="personal">Personal</div>
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label">Start Time</label>
+          <input type="time" class="input" id="entry-start" value="09:00" />
+        </div>
+        <div class="field">
+          <label class="field-label">Hours</label>
+          <input type="number" class="input" id="entry-hours" min="0" max="24" step="0.5" placeholder="e.g. 8" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Quick Tag</label>
+        <select class="select" id="entry-quick">
+          <option value="">— optional —</option>
+          <option value="Cabin cleaning & prep">Cabin cleaning & prep</option>
+          <option value="Engine maintenance">Engine maintenance</option>
+          <option value="Hull / topsides work">Hull / topsides work</option>
+          <option value="Rigging service">Rigging service</option>
+          <option value="Electronics maintenance">Electronics maintenance</option>
+          <option value="Client charter">Client charter</option>
+          <option value="Business meeting aboard">Business meeting aboard</option>
+          <option value="Photography / media">Photography / media</option>
+          <option value="Cruise / day sail">Cruise / day sail</option>
+          <option value="Delivery / passage">Delivery / passage</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Description</label>
+        <textarea class="textarea" id="entry-desc" placeholder="e.g. 8 hrs cabin cleaning (prep)"></textarea>
+      </div>
+
+      <button class="add-btn" id="btn-add-entry">＋ Add Entry</button>
+
+      <div class="divider"></div>
+
+      <div class="section-head">
+        <h3>Google Calendar Sync</h3>
+        <span class="count">Auto-pull Business</span>
+      </div>
+
+      <div class="helper" style="margin-top:0;margin-bottom:14px;">
+        Anything in your shared Google Calendar auto-imports as <b style="color:var(--cat-business);">Business</b>. Maintenance and Personal stay logged here directly.
+      </div>
+
+      <div class="sync-card">
+        <label class="field-label">Google Calendar iCal URL</label>
+        <input type="text" class="input" id="gcal-url" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" style="font-size:13px;" />
+        <div class="helper" style="margin-top:8px;margin-bottom:14px;font-size:12px;">
+          From Google Calendar settings → your calendar → "Integrate calendar" → "Secret address in iCal format"
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <button class="btn btn-primary" id="btn-gcal-sync">🔄 Sync Now</button>
+          <button class="btn" id="btn-gcal-clear" title="Remove all Google-sourced entries">Clear Imports</button>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-top:10px;cursor:pointer;color:var(--navy);">
+          <input type="checkbox" id="gcal-autosync" style="cursor:pointer;" />
+          <span>Auto-sync when I open this page</span>
+        </label>
+
+        <div id="gcal-status" class="helper" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-head">
+        <h3>Calendar Sharing</h3>
+        <span class="count">Two one-way feeds</span>
+      </div>
+
+      <div class="helper" style="margin-top:0;margin-bottom:14px;">
+        Logger is the source of truth. Two .ics files publish to your shared Google/Apple calendars: a full record for you, and a privacy-safe blocked-days feed for your assistant.
+      </div>
+
+      <div class="sync-card">
+        <div class="sync-card-header">
+          <span class="sync-card-title">For You / Accountant</span>
+          <span class="sync-card-arrow">⬇</span>
+        </div>
+        <div class="sync-card-desc">
+          Full calendar — every entry with category, hours, description. Use for personal calendar overlay or tax records.
+        </div>
+        <button class="btn btn-primary" id="btn-export-full" style="width:100%;">⬇ Download Full Calendar (.ics)</button>
+      </div>
+
+      <div class="sync-card">
+        <div class="sync-card-header">
+          <span class="sync-card-title">For Assistant / Shared Calendar</span>
+          <span class="sync-card-arrow">⬇</span>
+        </div>
+        <div class="sync-card-desc">
+          <b>Maintenance + Personal days only</b>, labeled "Boat Unavailable" (no detail revealed). Assistant subscribes to this and sees blocked days when scheduling charters.
+        </div>
+        <button class="btn btn-gold" id="btn-export-blocks" style="width:100%;">⬇ Download Blocked Days (.ics)</button>
+        <div class="helper" style="margin-top:10px;font-size:12px;">
+          <b>Setup once:</b> Upload to a stable URL (iCloud Drive shared link, GitHub Gist, Dropbox), then have your assistant subscribe by URL in Google Calendar. Re-upload after each session to refresh.
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-head">
+        <h3>Import from Calendar</h3>
+        <span class="count">One-time</span>
+      </div>
+
+      <div class="helper" style="margin-top:0;margin-bottom:14px;">
+        If you have existing events in Google or Apple Calendar, import them once. They'll be auto-tagged Business (you can change any individually). Drag a <code>.ics</code> file anywhere on this page or click below.
+      </div>
+
+      <input type="file" id="ics-file" accept=".ics" style="display:none;" />
+      <button class="btn" style="width:100%;" id="btn-pick-ics">Import .ics file…</button>
+    </aside>
+
+    <section class="calendar-wrap">
+      <div class="cal-header">
+        <div class="cal-title-block">
+          <div class="cal-month" id="cal-month">November</div>
+          <div class="cal-year" id="cal-year">2025</div>
+        </div>
+        <div class="cal-nav">
+          <button class="nav-btn" id="nav-prev" title="Previous month">‹</button>
+          <button class="btn" id="nav-today">Today</button>
+          <button class="nav-btn" id="nav-next" title="Next month">›</button>
+        </div>
+      </div>
+
+      <div class="cal-stats">
+        <div class="stat">
+          <div class="stat-label">Business</div>
+          <div class="stat-value business" id="stat-business">0<span class="stat-unit">hrs</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Maintenance</div>
+          <div class="stat-value maintenance" id="stat-maintenance">0<span class="stat-unit">hrs</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Personal</div>
+          <div class="stat-value personal" id="stat-personal">0<span class="stat-unit">hrs</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Business Use</div>
+          <div class="stat-value" id="stat-pct">—<span class="stat-unit">%</span></div>
+        </div>
+      </div>
+
+      <div class="cal-grid" id="cal-grid"></div>
+    </section>
+  </main>
+</div>
+
+<!-- Day modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Day Entries</h3>
+    <div class="modal-date" id="modal-date"></div>
+    <div class="modal-event-list" id="modal-event-list"></div>
+    <div class="modal-actions">
+      <button class="btn" id="modal-add-new">+ Add to this day</button>
+      <button class="btn btn-primary" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk-add modal -->
+<div class="modal-overlay" id="bulk-modal">
+  <div class="modal" style="max-width:680px;">
+    <h3>Bulk Add Entries</h3>
+    <div class="modal-date">Paste assistant-reported sessions or batch-log past days</div>
+
+    <div class="bulk-help">
+      <b>Format:</b> one entry per line. Examples that all parse:
+      <div style="margin-top:8px;color:var(--navy-soft);font-family:'SF Mono',Monaco,monospace;font-size:12px;line-height:1.7;">
+        <code>Nov 29 - 8h cabin cleaning</code> → maintenance<br>
+        <code>2025-11-30 8a-5p client charter ABC Corp</code> → business<br>
+        <code>Dec 1 9:00 4h photo shoot</code> → business (default)<br>
+        <code>Dec 2 — personal — boat outing with family</code> → personal
+      </div>
+      <div style="margin-top:8px;font-size:12px;">
+        Categories auto-detected from keywords (cleaning/maintenance/repair → Maintenance, charter/client/meeting → Business, personal/family → Personal). Default is <b>Business</b>.
+      </div>
+    </div>
+
+    <textarea class="bulk-textarea" id="bulk-input" placeholder="Nov 29 - 8h cabin cleaning&#10;Nov 30 - 8h cabin cleaning&#10;Dec 1 9:00 4h client charter"></textarea>
+
+    <div class="bulk-preview" id="bulk-preview" style="display:none;"></div>
+
+    <div class="modal-actions">
+      <button class="btn" id="bulk-cancel">Cancel</button>
+      <button class="btn" id="bulk-preview-btn">Preview</button>
+      <button class="btn btn-primary" id="bulk-confirm" disabled>Add Entries</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="json-input" accept=".json" style="display:none;" />
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'vessel-use-logger-v2';
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+const MONTH_ABBR = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+let state = {
+  entries: [],
+  viewYear: 0,
+  viewMonth: 0,
+  selectedCat: null,
+  selectedDate: null,
+};
+
+/* ── Persistence ─────────────────────────────────────────── */
+function saveLocal() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({entries: state.entries})); }
+  catch(e) { console.warn(e); }
+}
+function loadLocal() {
+  try {
+    // Try v2 first, fall back to v1 for migration
+    let raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) raw = localStorage.getItem('vessel-use-logger-v1');
+    if (raw) {
+      state.entries = JSON.parse(raw).entries || [];
+      state.entries.forEach(e => { if (!e.startTime) e.startTime = '09:00'; });
+    }
+  } catch(e) { console.warn(e); }
+}
+
+/* ── Helpers ────────────────────────────────────────────── */
+function uid() { return 'e_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+function fmtDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function parseISODate(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function formatTimeShort(hhmm) {
+  if (!hhmm) return '';
+  const [hStr, mStr] = hhmm.split(':');
+  let h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  const suffix = h >= 12 ? 'p' : 'a';
+  h = h % 12 || 12;
+  return m === 0 ? `${h}${suffix}` : `${h}:${mStr}${suffix}`;
+}
+function addHoursToTime(hhmm, hours) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const totalMin = h * 60 + m + Math.round(hours * 60);
+  const endH = Math.min(23, Math.floor(totalMin / 60));
+  const endM = totalMin % 60;
+  return `${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;
+}
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.toggle('error', !!isError);
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), 2400);
+}
+function escapeCSV(v) {
+  if (v == null) return '';
+  const s = String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function escapeXML(v) {
+  if (v == null) return '';
+  return String(v).replace(/[<>&"']/g, c => ({
+    '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'
+  }[c]));
+}
+
+/* ── Calendar Render ────────────────────────────────────── */
+function render() {
+  const y = state.viewYear, m = state.viewMonth;
+  document.getElementById('cal-month').textContent = MONTHS[m];
+  document.getElementById('cal-year').textContent = y;
+
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  DOW.forEach(d => {
+    const h = document.createElement('div');
+    h.className = 'dow';
+    h.textContent = d;
+    grid.appendChild(h);
+  });
+
+  const startDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const prevDays = new Date(y, m, 0).getDate();
+  const today = fmtDate(new Date());
+
+  for (let i = startDay - 1; i >= 0; i--) {
+    grid.appendChild(buildDayCell(new Date(y, m-1, prevDays - i), true, today));
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    grid.appendChild(buildDayCell(new Date(y, m, d), false, today));
+  }
+  const trail = (7 - ((startDay + daysInMonth) % 7)) % 7;
+  for (let d = 1; d <= trail; d++) {
+    grid.appendChild(buildDayCell(new Date(y, m+1, d), true, today));
+  }
+  renderStats();
+}
+
+function buildDayCell(date, otherMonth, todayStr) {
+  const cell = document.createElement('div');
+  cell.className = 'day-cell';
+  if (otherMonth) cell.classList.add('other-month');
+  const dStr = fmtDate(date);
+  if (dStr === todayStr) cell.classList.add('today');
+  if (dStr === state.selectedDate) cell.classList.add('selected');
+  cell.dataset.date = dStr;
+
+  const num = document.createElement('div');
+  num.className = 'day-num';
+  num.textContent = date.getDate();
+  cell.appendChild(num);
+
+  const dayEvents = state.entries.filter(e => e.date === dStr);
+  const visible = dayEvents.slice(0, 3);
+  visible.forEach(ev => {
+    const e = document.createElement('div');
+    e.className = `event ${ev.category || 'business'}`;
+    const timeLabel = ev.startTime ? `${formatTimeShort(ev.startTime)} ` : '';
+    const hrs = ev.hours ? `<span class="hrs">${ev.hours}h</span>` : '';
+    const labelText = `${timeLabel}${hrs}${escapeXML(ev.description || ev.category || 'event')}`;
+    e.innerHTML = `<span>${labelText}</span><button class="event-del" title="Delete">×</button>`;
+    e.title = `${ev.startTime ? ev.startTime + ' · ' : ''}${ev.description || ''}${ev.hours?` · ${ev.hours} hrs`:''}\nClick to edit · × to delete`;
+    e.addEventListener('click', (evt) => {
+      evt.stopPropagation();
+      if (evt.target.classList.contains('event-del')) {
+        if (confirm(`Delete "${ev.description || 'this entry'}"?`)) deleteEntry(ev.id);
+        return;
+      }
+      openModal(dStr, ev.id);
+    });
+    cell.appendChild(e);
+  });
+  if (dayEvents.length > 3) {
+    const more = document.createElement('div');
+    more.className = 'more-pill';
+    more.textContent = `+${dayEvents.length - 3} more`;
+    more.addEventListener('click', (evt) => { evt.stopPropagation(); openModal(dStr); });
+    cell.appendChild(more);
+  }
+
+  cell.addEventListener('click', () => onDayClick(dStr));
+  cell.addEventListener('dblclick', () => openModal(dStr));
+  return cell;
+}
+
+function onDayClick(dStr) {
+  state.selectedDate = dStr;
+  document.getElementById('entry-date').value = dStr;
+  document.querySelectorAll('.day-cell.selected').forEach(c => c.classList.remove('selected'));
+  const cell = document.querySelector(`.day-cell[data-date="${dStr}"]`);
+  if (cell) cell.classList.add('selected');
+}
+
+function renderStats() {
+  const y = state.viewYear, m = state.viewMonth;
+  const inMonth = state.entries.filter(e => {
+    const d = parseISODate(e.date);
+    return d.getFullYear() === y && d.getMonth() === m;
+  });
+  const sum = cat => inMonth.filter(e => e.category === cat).reduce((a,e) => a + (parseFloat(e.hours)||0), 0);
+  const b = sum('business'), mn = sum('maintenance'), p = sum('personal');
+  document.getElementById('stat-business').innerHTML    = `${b.toFixed(1).replace(/\.0$/,'')}<span class="stat-unit">hrs</span>`;
+  document.getElementById('stat-maintenance').innerHTML = `${mn.toFixed(1).replace(/\.0$/,'')}<span class="stat-unit">hrs</span>`;
+  document.getElementById('stat-personal').innerHTML    = `${p.toFixed(1).replace(/\.0$/,'')}<span class="stat-unit">hrs</span>`;
+  const total = b + mn + p;
+  const share = total > 0 ? ((b + mn) / total * 100) : null;
+  document.getElementById('stat-pct').innerHTML = share == null
+    ? `—<span class="stat-unit">%</span>`
+    : `${share.toFixed(0)}<span class="stat-unit">%</span>`;
+}
+
+/* ── Entry CRUD ─────────────────────────────────────────── */
+function clearForm() {
+  document.getElementById('entry-start').value = '09:00';
+  document.getElementById('entry-hours').value = '';
+  document.getElementById('entry-quick').value = '';
+  document.getElementById('entry-desc').value = '';
+  state.selectedCat = null;
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+}
+
+function addEntry() {
+  const date = document.getElementById('entry-date').value;
+  const startTime = document.getElementById('entry-start').value;
+  const hours = document.getElementById('entry-hours').value;
+  const quick = document.getElementById('entry-quick').value;
+  const desc = document.getElementById('entry-desc').value.trim();
+
+  if (!date) { toast('Pick a date first.', true); return; }
+  if (!state.selectedCat) { toast('Choose a category.', true); return; }
+  const finalDesc = desc || quick || (state.selectedCat[0].toUpperCase()+state.selectedCat.slice(1)+' use');
+
+  state.entries.push({
+    id: uid(),
+    date,
+    startTime: startTime || '09:00',
+    category: state.selectedCat,
+    hours: parseFloat(hours) || null,
+    description: finalDesc,
+    created: new Date().toISOString(),
+    modified: new Date().toISOString()
+  });
+  toast('Entry added.');
+  saveLocal();
+  clearForm();
+  render();
+}
+
+function deleteEntry(id) {
+  state.entries = state.entries.filter(e => e.id !== id);
+  saveLocal();
+  render();
+}
+
+/* ── Modal ──────────────────────────────────────────────── */
+function openModal(dateStr, focusId) {
+  const list = state.entries.filter(e => e.date === dateStr);
+  document.getElementById('modal-date').textContent = new Date(dateStr+'T00:00:00').toLocaleDateString(
+    'en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+  document.getElementById('modal-title').textContent = list.length ? 'Day Entries' : 'No entries';
+  const root = document.getElementById('modal-event-list');
+  root.innerHTML = '';
+  if (!list.length) {
+    root.innerHTML = '<div class="empty-state">Nothing logged on this date.<br>Click "Add to this day" below.</div>';
+  } else {
+    list.forEach(e => root.appendChild(buildModalEventRow(e, focusId === e.id)));
+  }
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('modal-add-new').onclick = () => {
+    closeModal();
+    document.getElementById('entry-date').value = dateStr;
+    onDayClick(dateStr);
+    document.querySelector('.panel').scrollTo({top:0, behavior:'smooth'});
+  };
+}
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+function buildModalEventRow(e, autoEdit) {
+  const wrap = document.createElement('div');
+  wrap.className = `modal-event ${e.category || 'business'}`;
+  if (autoEdit) wrap.classList.add('editing');
+  wrap.dataset.id = e.id;
+
+  const timeLbl = e.startTime ? formatTimeShort(e.startTime) : '';
+  const hrsLbl = e.hours ? `${e.hours} hrs` : '';
+  const meta = [
+    e.category ? e.category.toUpperCase() : 'UNCATEGORIZED',
+    [timeLbl, hrsLbl].filter(Boolean).join(' · ')
+  ].filter(Boolean).join(' · ');
+
+  wrap.innerHTML = `
+    <div class="me-view">
+      <div class="me-info">
+        <div class="me-title">${escapeXML(e.description || '(no description)')}</div>
+        <div class="me-meta">${meta}</div>
+      </div>
+      <div class="me-actions">
+        <button class="icon-btn" data-act="edit" title="Edit">✎</button>
+        <button class="icon-btn danger" data-act="del" title="Delete">×</button>
+      </div>
+    </div>
+    <div class="me-edit">
+      <div class="me-edit-grid">
+        <div>
+          <label class="field-label" style="margin-bottom:6px;">Date</label>
+          <input type="date" class="input-sm" data-f="date" value="${e.date}" />
+        </div>
+        <div>
+          <label class="field-label" style="margin-bottom:6px;">Start Time</label>
+          <input type="time" class="input-sm" data-f="startTime" value="${e.startTime || '09:00'}" />
+        </div>
+      </div>
+      <div class="me-edit-grid" style="grid-template-columns:1fr;">
+        <div>
+          <label class="field-label" style="margin-bottom:6px;">Hours</label>
+          <input type="number" class="input-sm" data-f="hours" min="0" max="24" step="0.5" value="${e.hours ?? ''}" />
+        </div>
+      </div>
+      <label class="field-label" style="margin-bottom:6px;">Category</label>
+      <div class="me-edit-cats">
+        <div class="me-edit-cat ${e.category==='business'?'active':''}" data-cat="business">Business</div>
+        <div class="me-edit-cat ${e.category==='maintenance'?'active':''}" data-cat="maintenance">Maintenance</div>
+        <div class="me-edit-cat ${e.category==='personal'?'active':''}" data-cat="personal">Personal</div>
+      </div>
+      <label class="field-label" style="margin-bottom:6px;">Description</label>
+      <textarea class="textarea-sm" data-f="description">${escapeXML(e.description || '')}</textarea>
+      <div class="me-edit-actions">
+        <button class="btn-sm" data-act="cancel">Cancel</button>
+        <button class="btn-sm btn-save" data-act="save">Save Changes</button>
+      </div>
+    </div>
+  `;
+
+  wrap.querySelector('[data-act="edit"]').addEventListener('click', () => wrap.classList.add('editing'));
+  wrap.querySelector('[data-act="del"]').addEventListener('click', () => {
+    if (confirm('Delete this entry?')) {
+      const dStr = e.date;
+      deleteEntry(e.id);
+      openModal(dStr);
+    }
+  });
+  wrap.querySelector('[data-act="cancel"]').addEventListener('click', () => {
+    wrap.classList.remove('editing');
+    wrap.querySelector('[data-f="date"]').value = e.date;
+    wrap.querySelector('[data-f="startTime"]').value = e.startTime || '09:00';
+    wrap.querySelector('[data-f="hours"]').value = e.hours ?? '';
+    wrap.querySelector('[data-f="description"]').value = e.description || '';
+    wrap.querySelectorAll('.me-edit-cat').forEach(c =>
+      c.classList.toggle('active', c.dataset.cat === e.category));
+  });
+  wrap.querySelectorAll('.me-edit-cat').forEach(c => {
+    c.addEventListener('click', () => {
+      wrap.querySelectorAll('.me-edit-cat').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+    });
+  });
+  wrap.querySelector('[data-act="save"]').addEventListener('click', () => {
+    const newDate = wrap.querySelector('[data-f="date"]').value;
+    const newStart = wrap.querySelector('[data-f="startTime"]').value || '09:00';
+    const newHours = wrap.querySelector('[data-f="hours"]').value;
+    const newDesc = wrap.querySelector('[data-f="description"]').value.trim();
+    const activeCat = wrap.querySelector('.me-edit-cat.active');
+    if (!newDate) { toast('Date required.', true); return; }
+
+    const target = state.entries.find(x => x.id === e.id);
+    if (!target) return;
+    const dateChanged = target.date !== newDate;
+    target.date = newDate;
+    target.startTime = newStart;
+    target.hours = parseFloat(newHours) || null;
+    target.description = newDesc || target.description;
+    target.category = activeCat ? activeCat.dataset.cat : target.category;
+    target.modified = new Date().toISOString();
+
+    saveLocal();
+    if (dateChanged) {
+      closeModal();
+      const nd = parseISODate(newDate);
+      state.viewYear = nd.getFullYear();
+      state.viewMonth = nd.getMonth();
+      render();
+      setTimeout(() => openModal(newDate, target.id), 100);
+      toast('Entry moved & saved.');
+    } else {
+      render();
+      openModal(newDate, null);
+      toast('Entry saved.');
+    }
+  });
+
+  return wrap;
+}
+
+/* ── Bulk parser ────────────────────────────────────────── */
+const KW_MAINT = /\b(clean|cleaning|maintenance|repair|service|wash|wax|hull|engine|rigging|electronics|prep|provision|fix|installation|fuel|oil)\b/i;
+const KW_PERSONAL = /\b(personal|family|friends|vacation|holiday|outing|own use)\b/i;
+const KW_BUSINESS = /\b(charter|client|meeting|business|customer|guest|photography|media|delivery|passage|sail|cruise)\b/i;
+
+function parseBulkLine(line, year) {
+  const original = line.trim();
+  if (!original || original.startsWith('#')) return null;
+
+  let rest = original;
+
+  // Try ISO date first
+  let dateStr = null;
+  const isoMatch = rest.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoMatch) {
+    dateStr = isoMatch[1];
+    rest = rest.slice(isoMatch[0].length).trim();
+  } else {
+    // Try "Mon DD" or "Month DD" (with optional comma & year)
+    const m = rest.match(/^([A-Za-z]+)\.?\s+(\d{1,2})(?:,?\s+(\d{4}))?/);
+    if (m) {
+      const monIdx = MONTH_ABBR.indexOf(m[1].toLowerCase().slice(0,3));
+      if (monIdx >= 0) {
+        const y = m[3] ? parseInt(m[3],10) : year;
+        const d = parseInt(m[2],10);
+        if (d >= 1 && d <= 31) {
+          dateStr = `${y}-${String(monIdx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          rest = rest.slice(m[0].length).trim();
+        }
+      }
+    }
+  }
+  if (!dateStr) return { invalid: true, original, reason: 'no date found' };
+
+  // Strip leading separators
+  rest = rest.replace(/^[-–—:|]+\s*/, '');
+
+  // Try to extract a start time + (optional) end time, e.g. "8a-5p", "9:00-13:30", "08:00-17:00"
+  let startTime = null;
+  let hours = null;
+  const timeRangeMatch = rest.match(/(\d{1,2})(?::(\d{2}))?\s*(am?|pm?)?\s*[-–—]\s*(\d{1,2})(?::(\d{2}))?\s*(am?|pm?)?\b/i);
+  if (timeRangeMatch) {
+    const sh = parseTimeParts(timeRangeMatch[1], timeRangeMatch[2], timeRangeMatch[3]);
+    const eh = parseTimeParts(timeRangeMatch[4], timeRangeMatch[5], timeRangeMatch[6]);
+    if (sh && eh) {
+      startTime = sh;
+      const sMin = toMin(sh), eMin = toMin(eh);
+      hours = Math.round(((eMin - sMin) / 60) * 10) / 10;
+      if (hours < 0) hours += 24;  // wrap past midnight (rare)
+      rest = rest.replace(timeRangeMatch[0], '').trim();
+    }
+  } else {
+    // Try start time only: "9:00", "8a", "0900"
+    const startMatch = rest.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am?|pm?)?\b/i);
+    if (startMatch && /\d/.test(startMatch[0])) {
+      // Avoid eating "8h" hour totals — must have either : or am/pm to be a clock time
+      if (startMatch[2] || startMatch[3]) {
+        const t = parseTimeParts(startMatch[1], startMatch[2], startMatch[3]);
+        if (t) {
+          startTime = t;
+          rest = rest.replace(startMatch[0], '').trim();
+        }
+      }
+    }
+  }
+
+  // Hours: "8h", "8 hrs", "8 hours"
+  if (hours == null) {
+    const hMatch = rest.match(/\b(\d+(?:\.\d+)?)\s*(h|hr|hrs|hours?)\b/i);
+    if (hMatch) {
+      hours = parseFloat(hMatch[1]);
+      rest = rest.replace(hMatch[0], '').trim();
+    }
+  }
+
+  // Strip leading separators again
+  rest = rest.replace(/^[-–—:|]+\s*/, '').trim();
+
+  // Category: explicit keyword "personal —" or "business -" at start, or auto-detect from full text
+  let category = null;
+  const explicitCat = rest.match(/^(business|maintenance|personal)\b\s*[-–—:]?\s*/i);
+  if (explicitCat) {
+    category = explicitCat[1].toLowerCase();
+    rest = rest.slice(explicitCat[0].length).trim();
+  } else {
+    if (KW_PERSONAL.test(original)) category = 'personal';
+    else if (KW_MAINT.test(original)) category = 'maintenance';
+    else if (KW_BUSINESS.test(original)) category = 'business';
+    else category = 'business';  // default
+  }
+
+  const description = rest || null;
+
+  return {
+    date: dateStr,
+    startTime: startTime || '09:00',
+    hours: hours,
+    category,
+    description: description || (category[0].toUpperCase()+category.slice(1)+' use'),
+    original
+  };
+}
+function parseTimeParts(hStr, mStr, ampm) {
+  let h = parseInt(hStr, 10);
+  const m = mStr ? parseInt(mStr, 10) : 0;
+  if (isNaN(h) || h < 0 || h > 23 || m < 0 || m > 59) return null;
+  if (ampm) {
+    const isPm = /^p/i.test(ampm);
+    if (h === 12) h = isPm ? 12 : 0;
+    else if (isPm) h += 12;
+  }
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function toMin(t) { const [h,m] = t.split(':').map(Number); return h*60+m; }
+
+function previewBulk() {
+  const txt = document.getElementById('bulk-input').value;
+  const lines = txt.split('\n').filter(l => l.trim());
+  const year = state.viewYear || new Date().getFullYear();
+  const parsed = lines.map(l => parseBulkLine(l, year)).filter(x => x);
+
+  const root = document.getElementById('bulk-preview');
+  root.style.display = 'block';
+  root.innerHTML = '';
+  if (!parsed.length) {
+    root.innerHTML = '<div class="empty-state" style="padding:14px;">No parsable lines found.</div>';
+    document.getElementById('bulk-confirm').disabled = true;
+    return [];
+  }
+  parsed.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'bulk-preview-row' + (p.invalid ? ' invalid' : '');
+    if (p.invalid) {
+      div.innerHTML = `<span><b>Invalid:</b> ${escapeXML(p.original)}</span><span>${p.reason}</span>`;
+    } else {
+      const time = p.hours ? `${formatTimeShort(p.startTime)} · ${p.hours}h` : formatTimeShort(p.startTime);
+      div.innerHTML = `
+        <span><b>${p.date}</b> · ${time}<br><span style="color:var(--navy-soft);font-size:12px;">${escapeXML(p.description)}</span></span>
+        <span style="text-transform:uppercase;font-weight:600;color:var(--cat-${p.category});font-size:11px;">${p.category}</span>
+      `;
+    }
+    root.appendChild(div);
+  });
+  const valid = parsed.filter(p => !p.invalid);
+  document.getElementById('bulk-confirm').disabled = valid.length === 0;
+  return valid;
+}
+function commitBulk() {
+  const valid = previewBulk();
+  valid.forEach(p => {
+    state.entries.push({
+      id: uid(),
+      date: p.date,
+      startTime: p.startTime,
+      hours: p.hours,
+      category: p.category,
+      description: p.description,
+      created: new Date().toISOString(),
+      modified: new Date().toISOString()
+    });
+  });
+  saveLocal();
+  render();
+  toast(`Added ${valid.length} entries.`);
+  closeBulkModal();
+}
+function openBulkModal() {
+  document.getElementById('bulk-input').value = '';
+  document.getElementById('bulk-preview').style.display = 'none';
+  document.getElementById('bulk-confirm').disabled = true;
+  document.getElementById('bulk-modal').classList.add('show');
+}
+function closeBulkModal() {
+  document.getElementById('bulk-modal').classList.remove('show');
+}
+
+/* ── Exports: CSV / XLS / JSON ─────────────────────────── */
+function buildRows() {
+  const sorted = [...state.entries].sort((a,b) => a.date.localeCompare(b.date));
+  const headers = ['Date','Day','Start Time','Category','Hours','Description'];
+  const rows = sorted.map(e => {
+    const d = parseISODate(e.date);
+    return [e.date, DOW[d.getDay()], e.startTime || '', e.category || '', e.hours ?? '', e.description || ''];
+  });
+  return { headers, rows, sorted };
+}
+function exportCSV() {
+  const { headers, rows } = buildRows();
+  const csv = [headers, ...rows].map(r => r.map(escapeCSV).join(',')).join('\n');
+  download('vessel-use-log.csv', csv, 'text/csv');
+}
+function exportXLS() {
+  const { headers, rows, sorted } = buildRows();
+  const tally = { business:0, maintenance:0, personal:0 };
+  sorted.forEach(e => { if (tally[e.category] !== undefined) tally[e.category] += parseFloat(e.hours)||0; });
+  const totalHrs = tally.business + tally.maintenance + tally.personal;
+  const bizPct = totalHrs ? ((tally.business+tally.maintenance)/totalHrs*100).toFixed(1) : '';
+
+  const headerCells = headers.map(h =>
+    `<Cell ss:StyleID="hdr"><Data ss:Type="String">${escapeXML(h)}</Data></Cell>`).join('');
+  const dataRows = rows.map(r => {
+    const cells = r.map((v,i) => {
+      if (i === 4 && v !== '' && v != null) return `<Cell><Data ss:Type="Number">${v}</Data></Cell>`;
+      return `<Cell><Data ss:Type="String">${escapeXML(v)}</Data></Cell>`;
+    }).join('');
+    return `<Row>${cells}</Row>`;
+  }).join('');
+  const summary = `
+    <Row></Row>
+    <Row><Cell ss:StyleID="lbl"><Data ss:Type="String">Total Business hrs</Data></Cell><Cell><Data ss:Type="Number">${tally.business}</Data></Cell></Row>
+    <Row><Cell ss:StyleID="lbl"><Data ss:Type="String">Total Maintenance hrs</Data></Cell><Cell><Data ss:Type="Number">${tally.maintenance}</Data></Cell></Row>
+    <Row><Cell ss:StyleID="lbl"><Data ss:Type="String">Total Personal hrs</Data></Cell><Cell><Data ss:Type="Number">${tally.personal}</Data></Cell></Row>
+    <Row><Cell ss:StyleID="lbl"><Data ss:Type="String">Business + Maintenance %</Data></Cell><Cell><Data ss:Type="String">${bizPct}%</Data></Cell></Row>`;
+  const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0A2540" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="lbl"><Font ss:Bold="1"/></Style>
+ </Styles>
+ <Worksheet ss:Name="Vessel Use Log">
+  <Table>
+   <Row>${headerCells}</Row>
+   ${dataRows}
+   ${summary}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+  download('vessel-use-log.xls', xml, 'application/vnd.ms-excel');
+}
+function exportJSON() {
+  download('vessel-use-log.json', JSON.stringify({entries: state.entries}, null, 2), 'application/json');
+}
+function importJSON(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (Array.isArray(data.entries)) {
+        const ids = new Set(state.entries.map(e => e.id));
+        let added = 0;
+        data.entries.forEach(e => {
+          if (!e.id || ids.has(e.id)) e.id = uid();
+          state.entries.push(e);
+          added++;
+        });
+        saveLocal();
+        render();
+        toast(`Loaded ${added} entries.`);
+      } else throw new Error('Invalid');
+    } catch(e) { toast('Invalid JSON file.', true); }
+  };
+  r.readAsText(file);
+}
+function download(name, data, mime) {
+  const blob = new Blob([data], {type: mime});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ── iCal generation ────────────────────────────────────── */
+function escapeICS(s) {
+  return String(s || '').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+}
+function fmtICSDateTime(dt) {
+  const pad = n => String(n).padStart(2,'0');
+  return dt.getUTCFullYear() + pad(dt.getUTCMonth()+1) + pad(dt.getUTCDate()) + 'T' +
+         pad(dt.getUTCHours()) + pad(dt.getUTCMinutes()) + pad(dt.getUTCSeconds()) + 'Z';
+}
+function foldLine(line) {
+  if (line.length <= 75) return line;
+  const out = [];
+  let i = 0;
+  while (i < line.length) {
+    out.push((i === 0 ? '' : ' ') + line.slice(i, i + 73));
+    i += 73;
+  }
+  return out.join('\r\n');
+}
+
+function generateICS(opts = {}) {
+  // opts: { mode: 'full' | 'blocks' }
+  const mode = opts.mode || 'full';
+  const now = new Date();
+  const dtstamp = fmtICSDateTime(now);
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Los_Angeles';
+
+  const calName = mode === 'blocks' ? 'Boat Unavailable (Blocked Days)' : 'Vessel Use Log';
+  const calDesc = mode === 'blocks'
+    ? 'Days when the vessel is unavailable for charter or business use. Auto-published from Vessel Use Logger.'
+    : 'Boat business-use log for Section 179 documentation.';
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Vessel Use Logger//Section 179//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${escapeICS(calName)}`,
+    `X-WR-CALDESC:${escapeICS(calDesc)}`,
+    `X-WR-TIMEZONE:${tz}`,
+    'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
+    'X-PUBLISHED-TTL:PT1H'
+  ];
+
+  // Filter entries based on mode
+  const sorted = [...state.entries].sort((a,b) => a.date.localeCompare(b.date));
+  const entries = mode === 'blocks'
+    ? sorted.filter(e => e.category === 'maintenance' || e.category === 'personal')
+    : sorted;
+
+  if (mode === 'blocks') {
+    // Group by date — multiple entries on the same day collapse to one all-day "Boat Unavailable"
+    const byDate = {};
+    entries.forEach(e => { byDate[e.date] = byDate[e.date] || []; byDate[e.date].push(e); });
+    Object.keys(byDate).sort().forEach(date => {
+      const dateNoSep = date.replace(/-/g,'');
+      // DTEND for all-day must be the day AFTER (exclusive)
+      const next = parseISODate(date);
+      next.setDate(next.getDate() + 1);
+      const endDateNoSep = fmtDate(next).replace(/-/g,'');
+
+      // Stable UID for blocks based on date — re-generation produces same UIDs, so subscribers see updates not duplicates
+      const blockUid = `block-${date}@vessel-use-logger`;
+
+      lines.push('BEGIN:VEVENT');
+      lines.push(foldLine(`UID:${blockUid}`));
+      lines.push(`DTSTAMP:${dtstamp}`);
+      lines.push(`DTSTART;VALUE=DATE:${dateNoSep}`);
+      lines.push(`DTEND;VALUE=DATE:${endDateNoSep}`);
+      lines.push(foldLine(`SUMMARY:🚫 Boat Unavailable`));
+      lines.push(foldLine(`DESCRIPTION:${escapeICS('The vessel is not available on this day. Please schedule charters around blocked days.')}`));
+      lines.push('TRANSP:OPAQUE');  // OPAQUE = shows as busy
+      lines.push('END:VEVENT');
+    });
+  } else {
+    // Full mode — timed events with full detail
+    entries.forEach(e => {
+      const startTime = e.startTime || '09:00';
+      const hours = parseFloat(e.hours) || 1;
+      const endTime = addHoursToTime(startTime, hours);
+      const dateNoSep = e.date.replace(/-/g,'');
+      const startStr = `${dateNoSep}T${startTime.replace(':','')}00`;
+      const endStr = `${dateNoSep}T${endTime.replace(':','')}00`;
+
+      const catLabel = e.category ? e.category[0].toUpperCase() + e.category.slice(1) : 'Uncategorized';
+      const hrsLabel = e.hours ? ` (${e.hours}h)` : '';
+      const summary = `${catLabel}${hrsLabel}: ${e.description || ''}`.trim();
+
+      const descLines = [
+        `Category: ${catLabel}`,
+        e.hours ? `Hours: ${e.hours}` : null,
+        e.startTime ? `Start: ${e.startTime}` : null,
+        e.description ? `Description: ${e.description}` : null,
+        '',
+        'Generated by Vessel Use Logger for Section 179 recordkeeping.'
+      ].filter(Boolean).join('\n');
+
+      const modDate = e.modified ? new Date(e.modified) : now;
+
+      lines.push('BEGIN:VEVENT');
+      lines.push(foldLine(`UID:${e.id}@vessel-use-logger`));
+      lines.push(`DTSTAMP:${dtstamp}`);
+      lines.push(`LAST-MODIFIED:${fmtICSDateTime(modDate)}`);
+      lines.push(`DTSTART;TZID=${tz}:${startStr}`);
+      lines.push(`DTEND;TZID=${tz}:${endStr}`);
+      lines.push(foldLine(`SUMMARY:${escapeICS(summary)}`));
+      lines.push(foldLine(`DESCRIPTION:${escapeICS(descLines)}`));
+      if (e.category) lines.push(`CATEGORIES:${e.category.toUpperCase()}`);
+      lines.push('TRANSP:TRANSPARENT');
+      lines.push('END:VEVENT');
+    });
+  }
+
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+function exportFullICS() {
+  if (state.entries.length === 0) { toast('No entries to export.', true); return; }
+  download('vessel-use-log.ics', generateICS({mode:'full'}), 'text/calendar');
+  toast('Full calendar downloaded.');
+}
+function exportBlocksICS() {
+  const blocks = state.entries.filter(e => e.category === 'maintenance' || e.category === 'personal');
+  if (blocks.length === 0) {
+    if (!confirm('No Maintenance or Personal entries yet — the blocks file will be empty. Continue anyway?')) return;
+  }
+  download('vessel-blocked-days.ics', generateICS({mode:'blocks'}), 'text/calendar');
+  toast('Blocked-days calendar downloaded.');
+}
+
+/* ── iCal import (one-time) ─────────────────────────────── */
+function parseICS(text) {
+  const unfolded = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
+  const lines = unfolded.split(/\r?\n/);
+  const events = [];
+  let cur = null;
+  for (const ln of lines) {
+    if (ln === 'BEGIN:VEVENT') cur = {};
+    else if (ln === 'END:VEVENT') { if (cur) events.push(cur); cur = null; }
+    else if (cur) {
+      const idx = ln.indexOf(':');
+      if (idx === -1) continue;
+      const left = ln.slice(0, idx);
+      const val = ln.slice(idx+1);
+      const key = left.split(';')[0];
+      if (key === 'SUMMARY') cur.summary = unescapeICS(val);
+      else if (key === 'DESCRIPTION') cur.description = unescapeICS(val);
+      else if (key === 'DTSTART') cur.start = parseICSDate(val, left);
+      else if (key === 'DTEND') cur.end = parseICSDate(val, left);
+      else if (key === 'STATUS') cur.status = val;
+      else if (key === 'UID') cur.uid = val;
+    }
+  }
+  return events;
+}
+function unescapeICS(s) {
+  return s.replace(/\\n/gi,' ').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\');
+}
+function parseICSDate(val, left) {
+  const isAllDay = /VALUE=DATE/i.test(left) || val.length === 8;
+  if (val.length >= 8) {
+    const y = +val.slice(0,4), m = +val.slice(4,6) - 1, d = +val.slice(6,8);
+    if (isAllDay) return { date: new Date(y, m, d), allDay: true };
+    const hh = +val.slice(9,11)||0, mm=+val.slice(11,13)||0, ss=+val.slice(13,15)||0;
+    const isUTC = val.endsWith('Z');
+    const dt = isUTC ? new Date(Date.UTC(y, m, d, hh, mm, ss)) : new Date(y, m, d, hh, mm, ss);
+    return { date: dt, allDay: false };
+  }
+  return null;
+}
+function importICSFile(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const events = parseICS(r.result);
+      let added = 0;
+      events.forEach(ev => {
+        if (!ev.start || ev.status === 'CANCELLED') return;
+        const dStr = fmtDate(ev.start.date);
+        let hours = null, startTime = '09:00';
+        if (ev.start && !ev.start.allDay) {
+          const sd = ev.start.date;
+          startTime = `${String(sd.getHours()).padStart(2,'0')}:${String(sd.getMinutes()).padStart(2,'0')}`;
+          if (ev.end) {
+            hours = (ev.end.date - ev.start.date) / 3600000;
+            hours = Math.round(hours * 10) / 10;
+          }
+        }
+        state.entries.push({
+          id: uid(),
+          date: dStr,
+          startTime,
+          category: 'business',  // imported events default to Business
+          hours,
+          description: ev.summary || ev.description || 'Imported event',
+          created: new Date().toISOString(),
+          modified: new Date().toISOString()
+        });
+        added++;
+      });
+      saveLocal();
+      render();
+      toast(`Imported ${added} events as Business. Edit to recategorize.`);
+    } catch(err) { toast('Could not parse .ics file.', true); }
+  };
+  r.readAsText(file);
+}
+
+/* ── Google Calendar Sync ───────────────────────────────── */
+// Cloudflare Worker proxy that adds CORS headers to Google Calendar iCal feeds.
+// (Google's iCal endpoints don't send Access-Control-Allow-Origin, so direct
+//  browser fetches are blocked. The worker passes the request through with
+//  the right header.)
+const GCAL_PROXY = 'https://boat-cal-proxy.dpacchini.workers.dev/';
+
+async function syncFromGoogleCalendar(opts = {}) {
+  const url = document.getElementById('gcal-url').value.trim();
+  const setStatus = (msg, isErr) => {
+    const el = document.getElementById('gcal-status');
+    if (el) {
+      el.innerHTML = msg;
+      el.style.color = isErr ? 'var(--rust)' : 'var(--navy-soft)';
+    }
+  };
+
+  if (!url) {
+    if (!opts.silent) setStatus('Paste a Google Calendar iCal URL above.', true);
+    return false;
+  }
+
+  // Validate it looks like a Google Calendar iCal URL
+  if (!url.startsWith('https://calendar.google.com/calendar/ical/')) {
+    setStatus(
+      'URL must start with <code>https://calendar.google.com/calendar/ical/</code>. ' +
+      'Use the "Secret address in iCal format" from Google Calendar settings.',
+      true
+    );
+    return false;
+  }
+
+  setStatus('Syncing…');
+
+  // Route through the Cloudflare Worker proxy
+  const proxyUrl = GCAL_PROXY + '?cal=' + encodeURIComponent(url);
+
+  try {
+    const res = await fetch(proxyUrl);
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status} — ${errText.slice(0, 100)}`);
+    }
+    const text = await res.text();
+    if (!text.includes('BEGIN:VCALENDAR')) {
+      throw new Error('Response is not iCal data — check your URL is correct');
+    }
+
+    const events = parseICS(text);
+    const result = mergeGcalEvents(events);
+    const parts = [];
+    if (result.added) parts.push(`${result.added} added`);
+    if (result.updated) parts.push(`${result.updated} updated`);
+    if (result.removed) parts.push(`${result.removed} removed`);
+    const summary = parts.length ? parts.join(', ') : 'already up to date';
+    setStatus(`Last synced ${new Date().toLocaleTimeString()} — ${summary}.`);
+    if (!opts.silent && parts.length) toast(`Synced: ${summary}.`);
+    return true;
+  } catch(e) {
+    console.error('Sync error:', e);
+    setStatus(`<b>Sync failed:</b> ${escapeXML(e.message)}`, true);
+    if (!opts.silent) toast('Sync failed — see status below.', true);
+    return false;
+  }
+}
+
+function mergeGcalEvents(events) {
+  // Auto-tag as Business, dedup by external UID, detect updates and removals
+  let added = 0, updated = 0, removed = 0;
+
+  const byExtUid = new Map();
+  state.entries.forEach(e => { if (e.externalUid) byExtUid.set(e.externalUid, e); });
+  const seenUids = new Set();
+
+  events.forEach(ev => {
+    if (!ev.start || ev.status === 'CANCELLED') return;
+
+    const dStr = fmtDate(ev.start.date);
+    let hours = null;
+    let startTime = '09:00';
+    if (!ev.start.allDay) {
+      const sd = ev.start.date;
+      startTime = `${String(sd.getHours()).padStart(2,'0')}:${String(sd.getMinutes()).padStart(2,'0')}`;
+      if (ev.end) {
+        hours = (ev.end.date - ev.start.date) / 3600000;
+        hours = Math.round(hours * 10) / 10;
+      }
+    }
+    const description = ev.summary || ev.description || 'Imported event';
+
+    if (ev.uid && byExtUid.has(ev.uid)) {
+      const existing = byExtUid.get(ev.uid);
+      seenUids.add(ev.uid);
+      const changed = existing.date !== dStr ||
+                      existing.startTime !== startTime ||
+                      existing.hours !== hours ||
+                      existing.description !== description;
+      if (changed) {
+        existing.date = dStr;
+        existing.startTime = startTime;
+        existing.hours = hours;
+        existing.description = description;
+        existing.modified = new Date().toISOString();
+        updated++;
+      }
+    } else {
+      const newEntry = {
+        id: uid(),
+        externalUid: ev.uid || null,
+        date: dStr,
+        startTime,
+        category: 'business',
+        hours,
+        description,
+        source: 'gcal',
+        created: new Date().toISOString(),
+        modified: new Date().toISOString()
+      };
+      state.entries.push(newEntry);
+      if (ev.uid) {
+        byExtUid.set(ev.uid, newEntry);
+        seenUids.add(ev.uid);
+      }
+      added++;
+    }
+  });
+
+  // Remove gcal-sourced entries that no longer appear in the feed
+  const before = state.entries.length;
+  state.entries = state.entries.filter(e => {
+    if (e.source !== 'gcal' || !e.externalUid) return true;
+    return seenUids.has(e.externalUid);
+  });
+  removed = before - state.entries.length;
+
+  saveLocal();
+  render();
+  return { added, updated, removed };
+}
+
+/* ── Init ───────────────────────────────────────────────── */
+function init() {
+  loadLocal();
+  const today = new Date();
+  state.viewYear = today.getFullYear();
+  state.viewMonth = today.getMonth();
+  document.getElementById('entry-date').value = fmtDate(today);
+
+  // Category pills
+  document.querySelectorAll('.cat-pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('.cat-pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      state.selectedCat = p.dataset.cat;
+    });
+  });
+
+  document.getElementById('entry-quick').addEventListener('change', e => {
+    if (e.target.value) {
+      const desc = document.getElementById('entry-desc');
+      if (!desc.value) desc.value = e.target.value;
+    }
+  });
+
+  document.getElementById('btn-add-entry').addEventListener('click', addEntry);
+
+  // Calendar nav
+  document.getElementById('nav-prev').addEventListener('click', () => {
+    state.viewMonth--;
+    if (state.viewMonth < 0) { state.viewMonth = 11; state.viewYear--; }
+    render();
+  });
+  document.getElementById('nav-next').addEventListener('click', () => {
+    state.viewMonth++;
+    if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
+    render();
+  });
+  document.getElementById('nav-today').addEventListener('click', () => {
+    const t = new Date();
+    state.viewYear = t.getFullYear();
+    state.viewMonth = t.getMonth();
+    render();
+  });
+
+  // Day modal
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target.id === 'modal') closeModal();
+  });
+
+  // Header buttons
+  document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
+  document.getElementById('btn-export-xls').addEventListener('click', exportXLS);
+  document.getElementById('btn-save-json').addEventListener('click', exportJSON);
+  document.getElementById('btn-load-json').addEventListener('click', () =>
+    document.getElementById('json-input').click());
+  document.getElementById('json-input').addEventListener('change', e => {
+    if (e.target.files[0]) importJSON(e.target.files[0]);
+    e.target.value = '';
+  });
+
+  // Bulk add modal
+  document.getElementById('btn-bulk').addEventListener('click', openBulkModal);
+  document.getElementById('bulk-cancel').addEventListener('click', closeBulkModal);
+  document.getElementById('bulk-modal').addEventListener('click', e => {
+    if (e.target.id === 'bulk-modal') closeBulkModal();
+  });
+  document.getElementById('bulk-preview-btn').addEventListener('click', previewBulk);
+  document.getElementById('bulk-confirm').addEventListener('click', commitBulk);
+  document.getElementById('bulk-input').addEventListener('input', () => {
+    document.getElementById('bulk-confirm').disabled = true;
+    document.getElementById('bulk-preview').style.display = 'none';
+  });
+
+  // iCal exports
+  document.getElementById('btn-export-full').addEventListener('click', exportFullICS);
+  document.getElementById('btn-export-blocks').addEventListener('click', exportBlocksICS);
+
+  // Google Calendar sync
+  const gcalUrlInput = document.getElementById('gcal-url');
+  const gcalAutoSync = document.getElementById('gcal-autosync');
+
+  // Restore saved settings
+  gcalUrlInput.value = localStorage.getItem('vessel-gcal-url') || '';
+  gcalAutoSync.checked = localStorage.getItem('vessel-gcal-autosync') === '1';
+
+  gcalUrlInput.addEventListener('input', () => {
+    localStorage.setItem('vessel-gcal-url', gcalUrlInput.value.trim());
+  });
+  gcalAutoSync.addEventListener('change', () => {
+    localStorage.setItem('vessel-gcal-autosync', gcalAutoSync.checked ? '1' : '0');
+  });
+
+  document.getElementById('btn-gcal-sync').addEventListener('click', () => syncFromGoogleCalendar());
+
+  document.getElementById('btn-gcal-clear').addEventListener('click', () => {
+    const count = state.entries.filter(e => e.source === 'gcal').length;
+    if (!count) { toast('No Google-imported entries to clear.'); return; }
+    if (confirm(`Remove all ${count} Google Calendar entries? Your manual entries are kept.`)) {
+      state.entries = state.entries.filter(e => e.source !== 'gcal');
+      saveLocal();
+      render();
+      toast(`Removed ${count} Google entries.`);
+      document.getElementById('gcal-status').textContent = '';
+    }
+  });
+
+  // Auto-sync on page load if enabled
+  if (gcalAutoSync.checked && gcalUrlInput.value.trim()) {
+    setTimeout(() => syncFromGoogleCalendar({ silent: true }), 500);
+  }
+
+  // .ics file import
+  document.getElementById('btn-pick-ics').addEventListener('click', () =>
+    document.getElementById('ics-file').click());
+  document.getElementById('ics-file').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) importICSFile(f);
+    e.target.value = '';
+  });
+
+  render();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
