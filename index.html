@@ -797,14 +797,32 @@
       <div class="sync-card">
         <div class="sync-card-header">
           <span class="sync-card-title">For Assistant / Shared Calendar</span>
-          <span class="sync-card-arrow">⬇</span>
+          <span class="sync-card-arrow">☁</span>
         </div>
         <div class="sync-card-desc">
-          <b>Maintenance + Personal days only</b>, labeled "Boat Unavailable" (no detail revealed). Assistant subscribes to this and sees blocked days when scheduling charters.
+          <b>Maintenance + Personal days only</b>, labeled "🚫 Boat Unavailable" (no detail revealed). Auto-pushed to the cloud whenever you log or edit. You and your assistant subscribe to one URL.
         </div>
-        <button class="btn btn-gold" id="btn-export-blocks" style="width:100%;">⬇ Download Blocked Days (.ics)</button>
-        <div class="helper" style="margin-top:10px;font-size:12px;">
-          <b>Setup once:</b> Upload to a stable URL (iCloud Drive shared link, GitHub Gist, Dropbox), then have your assistant subscribe by URL in Google Calendar. Re-upload after each session to refresh.
+
+        <label class="field-label">Write Token</label>
+        <input type="password" class="input" id="push-token" placeholder="Paste your secret token" style="font-size:13px;" />
+        <div class="helper" style="margin-top:6px;font-size:12px;">
+          The token you set in your Cloudflare Worker's WRITE_TOKEN secret. Stored in your browser only.
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+          <button class="btn btn-primary" id="btn-push-now">☁ Push Now</button>
+          <button class="btn" id="btn-export-blocks" title="Save .ics file to disk instead">⬇ Download .ics</button>
+        </div>
+
+        <div id="push-status" class="helper" style="margin-top:10px;"></div>
+
+        <div style="margin-top:14px;padding:10px 12px;background:rgba(14,116,144,0.08);border-left:3px solid var(--cat-business);font-size:12px;line-height:1.5;">
+          <b>Subscribe to this calendar in Google Calendar:</b><br>
+          <code id="feed-url" style="display:block;background:white;padding:6px 8px;margin-top:6px;border:1px solid var(--line);word-break:break-all;font-size:11px;cursor:text;user-select:all;"></code>
+          <button class="btn btn-sm" id="btn-copy-feed" style="margin-top:8px;font-size:11px;">📋 Copy URL</button>
+          <div style="margin-top:8px;color:var(--navy-soft);font-style:italic;">
+            In Google Calendar (web): "Other calendars" → + → "From URL" → paste → Add. Same URL for you and your assistant.
+          </div>
         </div>
       </div>
 
@@ -926,6 +944,8 @@ let state = {
 function saveLocal() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify({entries: state.entries})); }
   catch(e) { console.warn(e); }
+  // Schedule a push of the blocks feed (debounced)
+  if (typeof schedulePushBlocks === 'function') schedulePushBlocks();
 }
 function loadLocal() {
   try {
@@ -1667,6 +1687,74 @@ function exportBlocksICS() {
   toast('Blocked-days calendar downloaded.');
 }
 
+/* ── Auto-push blocks to Cloudflare Worker ───────────────── */
+// On every save, regenerate the blocks ics and push it to the worker if changed.
+// Debounced so rapid edits don't flood requests.
+let pushTimer = null;
+let lastPushedHash = localStorage.getItem('vessel-last-blocks-hash') || '';
+
+async function hashString(s) {
+  const buf = new TextEncoder().encode(s);
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function setPushStatus(msg, isErr) {
+  const el = document.getElementById('push-status');
+  if (el) {
+    el.innerHTML = msg;
+    el.style.color = isErr ? 'var(--rust)' : 'var(--navy-soft)';
+  }
+}
+
+async function pushBlocksToCloud(opts = {}) {
+  const token = localStorage.getItem('vessel-write-token') || '';
+  if (!token) {
+    if (!opts.silent) setPushStatus('Set your write token below to enable auto-push.', true);
+    return;
+  }
+
+  const ics = generateICS({mode:'blocks'});
+  const hash = await hashString(ics);
+
+  if (hash === lastPushedHash && !opts.force) {
+    if (!opts.silent) setPushStatus(`No changes since last push (${new Date().toLocaleTimeString()}).`);
+    return;
+  }
+
+  setPushStatus('Pushing…');
+
+  try {
+    const res = await fetch(BLOCKS_PUSH_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/calendar',
+        'X-Auth-Token': token,
+      },
+      body: ics
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status} ${errText.slice(0, 80)}`);
+    }
+    lastPushedHash = hash;
+    localStorage.setItem('vessel-last-blocks-hash', hash);
+    const blockCount = state.entries.filter(e => e.category === 'maintenance' || e.category === 'personal').length;
+    setPushStatus(`Pushed ${blockCount} blocked day${blockCount===1?'':'s'} at ${new Date().toLocaleTimeString()}.`);
+    if (!opts.silent) toast('Blocks synced to cloud.');
+  } catch(e) {
+    console.error('Push error:', e);
+    setPushStatus(`<b>Push failed:</b> ${escapeXML(e.message)}`, true);
+    if (!opts.silent) toast('Push failed — check token.', true);
+  }
+}
+
+function schedulePushBlocks() {
+  // Debounce — wait 2 seconds after last save before pushing
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => pushBlocksToCloud({silent: true}), 2000);
+}
+
 /* ── iCal import (one-time) ─────────────────────────────── */
 function parseICS(text) {
   const unfolded = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
@@ -1746,11 +1834,11 @@ function importICSFile(file) {
 }
 
 /* ── Google Calendar Sync ───────────────────────────────── */
-// Cloudflare Worker proxy that adds CORS headers to Google Calendar iCal feeds.
-// (Google's iCal endpoints don't send Access-Control-Allow-Origin, so direct
-//  browser fetches are blocked. The worker passes the request through with
-//  the right header.)
+// Cloudflare Worker proxy that adds CORS headers to Google Calendar iCal feeds,
+// and stores/serves the blocks-ics feed for assistant subscription.
 const GCAL_PROXY = 'https://boat-cal-proxy.dpacchini.workers.dev/';
+const BLOCKS_PUSH_URL = 'https://boat-cal-proxy.dpacchini.workers.dev/blocks';
+const BLOCKS_FEED_URL = 'https://boat-cal-proxy.dpacchini.workers.dev/blocks.ics';
 
 async function syncFromGoogleCalendar(opts = {}) {
   const url = document.getElementById('gcal-url').value.trim();
@@ -1962,6 +2050,29 @@ function init() {
   // iCal exports
   document.getElementById('btn-export-full').addEventListener('click', exportFullICS);
   document.getElementById('btn-export-blocks').addEventListener('click', exportBlocksICS);
+
+  // Auto-push blocks: token input + push button + feed URL display
+  const tokenInput = document.getElementById('push-token');
+  tokenInput.value = localStorage.getItem('vessel-write-token') || '';
+  tokenInput.addEventListener('input', () => {
+    localStorage.setItem('vessel-write-token', tokenInput.value.trim());
+    // Reset push hash so next push always succeeds (in case token was wrong before)
+    lastPushedHash = '';
+    localStorage.setItem('vessel-last-blocks-hash', '');
+  });
+
+  document.getElementById('btn-push-now').addEventListener('click', () => {
+    pushBlocksToCloud({ force: true });
+  });
+
+  // Display the feed URL
+  document.getElementById('feed-url').textContent = BLOCKS_FEED_URL;
+  document.getElementById('btn-copy-feed').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(BLOCKS_FEED_URL);
+      toast('Feed URL copied.');
+    } catch(e) { toast('Copy failed — select and copy manually.', true); }
+  });
 
   // Google Calendar sync
   const gcalUrlInput = document.getElementById('gcal-url');
