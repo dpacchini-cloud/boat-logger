@@ -744,6 +744,37 @@
       <div class="divider"></div>
 
       <div class="section-head">
+        <h3>Google Calendar Sync</h3>
+        <span class="count">Auto-pull Business</span>
+      </div>
+
+      <div class="helper" style="margin-top:0;margin-bottom:14px;">
+        Anything in your shared Google Calendar auto-imports as <b style="color:var(--cat-business);">Business</b>. Maintenance and Personal stay logged here directly.
+      </div>
+
+      <div class="sync-card">
+        <label class="field-label">Google Calendar iCal URL</label>
+        <input type="text" class="input" id="gcal-url" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" style="font-size:13px;" />
+        <div class="helper" style="margin-top:8px;margin-bottom:14px;font-size:12px;">
+          From Google Calendar settings → your calendar → "Integrate calendar" → "Secret address in iCal format"
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <button class="btn btn-primary" id="btn-gcal-sync">🔄 Sync Now</button>
+          <button class="btn" id="btn-gcal-clear" title="Remove all Google-sourced entries">Clear Imports</button>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-top:10px;cursor:pointer;color:var(--navy);">
+          <input type="checkbox" id="gcal-autosync" style="cursor:pointer;" />
+          <span>Auto-sync when I open this page</span>
+        </label>
+
+        <div id="gcal-status" class="helper" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-head">
         <h3>Calendar Sharing</h3>
         <span class="count">Two one-way feeds</span>
       </div>
@@ -1656,6 +1687,7 @@ function parseICS(text) {
       else if (key === 'DTSTART') cur.start = parseICSDate(val, left);
       else if (key === 'DTEND') cur.end = parseICSDate(val, left);
       else if (key === 'STATUS') cur.status = val;
+      else if (key === 'UID') cur.uid = val;
     }
   }
   return events;
@@ -1711,6 +1743,126 @@ function importICSFile(file) {
     } catch(err) { toast('Could not parse .ics file.', true); }
   };
   r.readAsText(file);
+}
+
+/* ── Google Calendar Sync ───────────────────────────────── */
+async function syncFromGoogleCalendar(opts = {}) {
+  const url = document.getElementById('gcal-url').value.trim();
+  const setStatus = (msg, isErr) => {
+    const el = document.getElementById('gcal-status');
+    if (el) {
+      el.innerHTML = msg;
+      el.style.color = isErr ? 'var(--rust)' : 'var(--navy-soft)';
+    }
+  };
+
+  if (!url) {
+    if (!opts.silent) setStatus('Paste a Google Calendar iCal URL above.', true);
+    return false;
+  }
+
+  setStatus('Syncing…');
+
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    if (!text.includes('BEGIN:VCALENDAR')) throw new Error('Response is not iCal data');
+
+    const events = parseICS(text);
+    const result = mergeGcalEvents(events);
+    const parts = [];
+    if (result.added) parts.push(`${result.added} added`);
+    if (result.updated) parts.push(`${result.updated} updated`);
+    if (result.removed) parts.push(`${result.removed} removed`);
+    const summary = parts.length ? parts.join(', ') : 'already up to date';
+    setStatus(`Last synced ${new Date().toLocaleTimeString()} — ${summary}.`);
+    if (!opts.silent && parts.length) toast(`Synced: ${summary}.`);
+    return true;
+  } catch(e) {
+    console.error('Sync error:', e);
+    setStatus(
+      `<b>Sync failed:</b> ${escapeXML(e.message)}.<br>` +
+      `If you see a "CORS" error, the page must be served from a real web URL (e.g. GitHub Pages), not opened as a local file.`,
+      true
+    );
+    if (!opts.silent) toast('Sync failed — see status below.', true);
+    return false;
+  }
+}
+
+function mergeGcalEvents(events) {
+  // Auto-tag as Business, dedup by external UID, detect updates and removals
+  let added = 0, updated = 0, removed = 0;
+
+  const byExtUid = new Map();
+  state.entries.forEach(e => { if (e.externalUid) byExtUid.set(e.externalUid, e); });
+  const seenUids = new Set();
+
+  events.forEach(ev => {
+    if (!ev.start || ev.status === 'CANCELLED') return;
+
+    const dStr = fmtDate(ev.start.date);
+    let hours = null;
+    let startTime = '09:00';
+    if (!ev.start.allDay) {
+      const sd = ev.start.date;
+      startTime = `${String(sd.getHours()).padStart(2,'0')}:${String(sd.getMinutes()).padStart(2,'0')}`;
+      if (ev.end) {
+        hours = (ev.end.date - ev.start.date) / 3600000;
+        hours = Math.round(hours * 10) / 10;
+      }
+    }
+    const description = ev.summary || ev.description || 'Imported event';
+
+    if (ev.uid && byExtUid.has(ev.uid)) {
+      const existing = byExtUid.get(ev.uid);
+      seenUids.add(ev.uid);
+      const changed = existing.date !== dStr ||
+                      existing.startTime !== startTime ||
+                      existing.hours !== hours ||
+                      existing.description !== description;
+      if (changed) {
+        existing.date = dStr;
+        existing.startTime = startTime;
+        existing.hours = hours;
+        existing.description = description;
+        existing.modified = new Date().toISOString();
+        updated++;
+      }
+    } else {
+      const newEntry = {
+        id: uid(),
+        externalUid: ev.uid || null,
+        date: dStr,
+        startTime,
+        category: 'business',
+        hours,
+        description,
+        source: 'gcal',
+        created: new Date().toISOString(),
+        modified: new Date().toISOString()
+      };
+      state.entries.push(newEntry);
+      if (ev.uid) {
+        byExtUid.set(ev.uid, newEntry);
+        seenUids.add(ev.uid);
+      }
+      added++;
+    }
+  });
+
+  // Remove gcal-sourced entries that no longer appear in the feed
+  const before = state.entries.length;
+  state.entries = state.entries.filter(e => {
+    if (e.source !== 'gcal' || !e.externalUid) return true;
+    return seenUids.has(e.externalUid);
+  });
+  removed = before - state.entries.length;
+
+  saveLocal();
+  render();
+  return { added, updated, removed };
 }
 
 /* ── Init ───────────────────────────────────────────────── */
@@ -1790,6 +1942,40 @@ function init() {
   // iCal exports
   document.getElementById('btn-export-full').addEventListener('click', exportFullICS);
   document.getElementById('btn-export-blocks').addEventListener('click', exportBlocksICS);
+
+  // Google Calendar sync
+  const gcalUrlInput = document.getElementById('gcal-url');
+  const gcalAutoSync = document.getElementById('gcal-autosync');
+
+  // Restore saved settings
+  gcalUrlInput.value = localStorage.getItem('vessel-gcal-url') || '';
+  gcalAutoSync.checked = localStorage.getItem('vessel-gcal-autosync') === '1';
+
+  gcalUrlInput.addEventListener('input', () => {
+    localStorage.setItem('vessel-gcal-url', gcalUrlInput.value.trim());
+  });
+  gcalAutoSync.addEventListener('change', () => {
+    localStorage.setItem('vessel-gcal-autosync', gcalAutoSync.checked ? '1' : '0');
+  });
+
+  document.getElementById('btn-gcal-sync').addEventListener('click', () => syncFromGoogleCalendar());
+
+  document.getElementById('btn-gcal-clear').addEventListener('click', () => {
+    const count = state.entries.filter(e => e.source === 'gcal').length;
+    if (!count) { toast('No Google-imported entries to clear.'); return; }
+    if (confirm(`Remove all ${count} Google Calendar entries? Your manual entries are kept.`)) {
+      state.entries = state.entries.filter(e => e.source !== 'gcal');
+      saveLocal();
+      render();
+      toast(`Removed ${count} Google entries.`);
+      document.getElementById('gcal-status').textContent = '';
+    }
+  });
+
+  // Auto-sync on page load if enabled
+  if (gcalAutoSync.checked && gcalUrlInput.value.trim()) {
+    setTimeout(() => syncFromGoogleCalendar({ silent: true }), 500);
+  }
 
   // .ics file import
   document.getElementById('btn-pick-ics').addEventListener('click', () =>
