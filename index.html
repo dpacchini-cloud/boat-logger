@@ -800,7 +800,7 @@
           <span class="sync-card-arrow">☁</span>
         </div>
         <div class="sync-card-desc">
-          <b>Maintenance + Personal days only</b>, labeled "🚫 Boat Unavailable" (no detail revealed). Auto-pushed to the cloud whenever you log or edit. You and your assistant subscribe to one URL.
+          <b>Blocked days</b> (Maintenance, Personal, and Business you log directly) → labeled "🚫 Boat Unavailable" (no detail revealed). Business events synced from Google Calendar are NOT included (assistant already sees those). Auto-pushed when you log or edit.
         </div>
 
         <label class="field-label">Write Token</label>
@@ -1407,6 +1407,16 @@ function parseTimeParts(hStr, mStr, ampm) {
 }
 function toMin(t) { const [h,m] = t.split(':').map(Number); return h*60+m; }
 
+// Defines which entries appear as "Boat Unavailable" on the assistant's shared calendar.
+// Rule: Maintenance, Personal, and Business events you entered directly in the logger.
+// Excluded: Business events that came from Google Calendar sync (assistant already sees those).
+function isBlockingEvent(e) {
+  if (e.category === 'maintenance') return true;
+  if (e.category === 'personal') return true;
+  if (e.category === 'business' && e.source !== 'gcal') return true;
+  return false;
+}
+
 function previewBulk() {
   const txt = document.getElementById('bulk-input').value;
   const lines = txt.split('\n').filter(l => l.trim());
@@ -1603,7 +1613,7 @@ function generateICS(opts = {}) {
   // Filter entries based on mode
   const sorted = [...state.entries].sort((a,b) => a.date.localeCompare(b.date));
   const entries = mode === 'blocks'
-    ? sorted.filter(e => e.category === 'maintenance' || e.category === 'personal')
+    ? sorted.filter(isBlockingEvent)
     : sorted;
 
   if (mode === 'blocks') {
@@ -1679,9 +1689,9 @@ function exportFullICS() {
   toast('Full calendar downloaded.');
 }
 function exportBlocksICS() {
-  const blocks = state.entries.filter(e => e.category === 'maintenance' || e.category === 'personal');
+  const blocks = state.entries.filter(isBlockingEvent);
   if (blocks.length === 0) {
-    if (!confirm('No Maintenance or Personal entries yet — the blocks file will be empty. Continue anyway?')) return;
+    if (!confirm('No blocking entries yet (Maintenance, Personal, or logger-entered Business) — the blocks file will be empty. Continue anyway?')) return;
   }
   download('vessel-blocked-days.ics', generateICS({mode:'blocks'}), 'text/calendar');
   toast('Blocked-days calendar downloaded.');
@@ -1739,7 +1749,7 @@ async function pushBlocksToCloud(opts = {}) {
     }
     lastPushedHash = hash;
     localStorage.setItem('vessel-last-blocks-hash', hash);
-    const blockCount = state.entries.filter(e => e.category === 'maintenance' || e.category === 'personal').length;
+    const blockCount = state.entries.filter(isBlockingEvent).length;
     setPushStatus(`Pushed ${blockCount} blocked day${blockCount===1?'':'s'} at ${new Date().toLocaleTimeString()}.`);
     if (!opts.silent) toast('Blocks synced to cloud.');
   } catch(e) {
