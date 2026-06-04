@@ -311,7 +311,7 @@
 
   .cal-stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 1px;
     background: var(--line);
     border: 1px solid var(--line);
@@ -337,6 +337,89 @@
   .stat-value.maintenance { color: var(--cat-maintenance); }
   .stat-value.personal { color: var(--cat-personal); }
   .stat-unit { font-size: 13px; color: var(--navy-soft); margin-left: 5px; font-style: italic; }
+
+  /* Monthly summary view */
+  .month-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .month-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 22px;
+  }
+  .month-card-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+  .month-card-period {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--navy-soft);
+    margin-bottom: 16px;
+  }
+  .month-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .month-card-row:last-child { border-bottom: none; }
+  .month-card-row .label {
+    color: var(--navy-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .month-card-row .value {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .month-card-row .value.business { color: var(--cat-business); }
+  .month-card-row .value.maintenance { color: var(--cat-maintenance); }
+  .month-card-row .value.personal { color: var(--cat-personal); }
+  .month-card-row .value.income { color: var(--cat-business); }
+  .month-card.featured {
+    border: 2px solid var(--gold);
+    background: linear-gradient(135deg, #fff8d6 0%, var(--paper) 60%);
+  }
+  .income-by-payer {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 22px;
+  }
+  .income-by-payer h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    color: var(--navy);
+    margin-bottom: 14px;
+  }
+  .payer-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .payer-row:last-child { border-bottom: none; }
+  .payer-row .name { color: var(--navy); }
+  .payer-row .amt {
+    color: var(--cat-business);
+    font-weight: 600;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+  }
 
   .cal-grid {
     display: grid;
@@ -667,6 +750,7 @@
     .cal-year { font-size: 24px; }
     .day-cell { min-height: 80px; }
     .cal-stats { grid-template-columns: repeat(2, 1fr); }
+    .month-summary { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -737,6 +821,19 @@
       <div class="field">
         <label class="field-label">Description</label>
         <textarea class="textarea" id="entry-desc" placeholder="e.g. 8 hrs cabin cleaning (prep)"></textarea>
+      </div>
+
+      <div id="income-fields" style="display:none;">
+        <div class="row-2">
+          <div class="field">
+            <label class="field-label">Amount ($)</label>
+            <input type="number" class="input" id="entry-amount" min="0" step="0.01" placeholder="e.g. 1500" />
+          </div>
+          <div class="field">
+            <label class="field-label">Payer</label>
+            <input type="text" class="input" id="entry-payer" placeholder="Client name" />
+          </div>
+        </div>
       </div>
 
       <button class="add-btn" id="btn-add-entry">＋ Add Entry</button>
@@ -848,6 +945,7 @@
           <div class="cal-year" id="cal-year">2025</div>
         </div>
         <div class="cal-nav">
+          <button class="btn" id="view-toggle" title="Switch between Daily calendar and Monthly summary">📊 Monthly View</button>
           <button class="nav-btn" id="nav-prev" title="Previous month">‹</button>
           <button class="btn" id="nav-today">Today</button>
           <button class="nav-btn" id="nav-next" title="Next month">›</button>
@@ -868,12 +966,18 @@
           <div class="stat-value personal" id="stat-personal">0<span class="stat-unit">hrs</span></div>
         </div>
         <div class="stat">
+          <div class="stat-label">Income</div>
+          <div class="stat-value business" id="stat-income">$0</div>
+        </div>
+        <div class="stat">
           <div class="stat-label">Business Use</div>
           <div class="stat-value" id="stat-pct">—<span class="stat-unit">%</span></div>
         </div>
       </div>
 
       <div class="cal-grid" id="cal-grid"></div>
+
+      <div id="monthly-view" style="display:none;"></div>
     </section>
   </main>
 </div>
@@ -1005,6 +1109,15 @@ function escapeXML(v) {
 }
 
 /* ── Calendar Render ────────────────────────────────────── */
+function applyViewMode() {
+  const isDaily = state.viewMode !== 'monthly';
+  document.getElementById('cal-grid').style.display = isDaily ? '' : 'none';
+  document.getElementById('monthly-view').style.display = isDaily ? 'none' : '';
+  const btn = document.getElementById('view-toggle');
+  if (btn) btn.textContent = isDaily ? '📊 Monthly View' : '📅 Daily View';
+  if (!isDaily) renderMonthlyView();
+}
+
 function render() {
   const y = state.viewYear, m = state.viewMonth;
   document.getElementById('cal-month').textContent = MONTHS[m];
@@ -1035,6 +1148,7 @@ function render() {
     grid.appendChild(buildDayCell(new Date(y, m+1, d), true, today));
   }
   renderStats();
+  if (state.viewMode === 'monthly') renderMonthlyView();
 }
 
 function buildDayCell(date, otherMonth, todayStr) {
@@ -1100,14 +1214,108 @@ function renderStats() {
   });
   const sum = cat => inMonth.filter(e => e.category === cat).reduce((a,e) => a + (parseFloat(e.hours)||0), 0);
   const b = sum('business'), mn = sum('maintenance'), p = sum('personal');
+  const income = inMonth.filter(e => e.category === 'business').reduce((a,e) => a + (parseFloat(e.amount)||0), 0);
   document.getElementById('stat-business').innerHTML    = `${b.toFixed(1).replace(/\.0$/,'')}<span class="stat-unit">hrs</span>`;
   document.getElementById('stat-maintenance').innerHTML = `${mn.toFixed(1).replace(/\.0$/,'')}<span class="stat-unit">hrs</span>`;
   document.getElementById('stat-personal').innerHTML    = `${p.toFixed(1).replace(/\.0$/,'')}<span class="stat-unit">hrs</span>`;
+  document.getElementById('stat-income').innerHTML      = `$${income.toLocaleString(undefined,{maximumFractionDigits:0})}`;
   const total = b + mn + p;
   const share = total > 0 ? ((b + mn) / total * 100) : null;
   document.getElementById('stat-pct').innerHTML = share == null
     ? `—<span class="stat-unit">%</span>`
     : `${share.toFixed(0)}<span class="stat-unit">%</span>`;
+}
+
+function summarizeRange(startDate, endDate) {
+  // Returns hours by category + income + payer breakdown for entries in [startDate, endDate]
+  const inRange = state.entries.filter(e => {
+    const d = parseISODate(e.date);
+    return d >= startDate && d <= endDate;
+  });
+  const sum = cat => inRange.filter(e => e.category === cat).reduce((a,e) => a + (parseFloat(e.hours)||0), 0);
+  const income = inRange.filter(e => e.category === 'business').reduce((a,e) => a + (parseFloat(e.amount)||0), 0);
+  const byPayer = {};
+  inRange.filter(e => e.category === 'business' && e.amount).forEach(e => {
+    const payer = e.payer || '(unspecified)';
+    byPayer[payer] = (byPayer[payer] || 0) + parseFloat(e.amount);
+  });
+  return {
+    business: sum('business'),
+    maintenance: sum('maintenance'),
+    personal: sum('personal'),
+    income,
+    byPayer,
+    count: inRange.length
+  };
+}
+
+function renderMonthlyView() {
+  const y = state.viewYear, m = state.viewMonth;
+
+  const thisMonthStart = new Date(y, m, 1);
+  const thisMonthEnd = new Date(y, m+1, 0);
+  const lastMonthStart = new Date(y, m-1, 1);
+  const lastMonthEnd = new Date(y, m, 0);
+  const ytdStart = new Date(y, 0, 1);
+  const ytdEnd = new Date(y, 11, 31);
+
+  const thisMonth = summarizeRange(thisMonthStart, thisMonthEnd);
+  const lastMonth = summarizeRange(lastMonthStart, lastMonthEnd);
+  const ytd = summarizeRange(ytdStart, ytdEnd);
+
+  const monthLabel = MONTHS[m];
+  const lastMonthLabel = MONTHS[m === 0 ? 11 : m - 1];
+  const lastMonthYear = m === 0 ? y - 1 : y;
+
+  const fmtMoney = n => '$' + n.toLocaleString(undefined,{maximumFractionDigits:0});
+  const fmtHrs = n => n.toFixed(1).replace(/\.0$/,'') + ' hrs';
+
+  const card = (title, period, data, featured) => `
+    <div class="month-card ${featured?'featured':''}">
+      <div class="month-card-title">${title}</div>
+      <div class="month-card-period">${period}</div>
+      <div class="month-card-row">
+        <span class="label">Income</span>
+        <span class="value income">${fmtMoney(data.income)}</span>
+      </div>
+      <div class="month-card-row">
+        <span class="label">Business</span>
+        <span class="value business">${fmtHrs(data.business)}</span>
+      </div>
+      <div class="month-card-row">
+        <span class="label">Maintenance</span>
+        <span class="value maintenance">${fmtHrs(data.maintenance)}</span>
+      </div>
+      <div class="month-card-row">
+        <span class="label">Personal</span>
+        <span class="value personal">${fmtHrs(data.personal)}</span>
+      </div>
+      <div class="month-card-row">
+        <span class="label">Entries</span>
+        <span class="value">${data.count}</span>
+      </div>
+    </div>
+  `;
+
+  const payerEntries = Object.entries(thisMonth.byPayer).sort((a,b) => b[1] - a[1]);
+  const payerHtml = payerEntries.length
+    ? payerEntries.map(([name, amt]) =>
+        `<div class="payer-row"><span class="name">${escapeXML(name)}</span><span class="amt">${fmtMoney(amt)}</span></div>`
+      ).join('')
+    : '<div class="payer-row" style="color:var(--navy-soft);font-style:italic;">No income recorded this month.</div>';
+
+  document.getElementById('monthly-view').innerHTML = `
+    <div class="month-summary">
+      ${card(monthLabel + ' ' + y, 'This Month', thisMonth, true)}
+      ${card(lastMonthLabel + ' ' + lastMonthYear, 'Last Month', lastMonth, false)}
+      ${card(y + ' YTD', 'Year to Date', ytd, false)}
+    </div>
+    <div class="income-by-payer">
+      <h3>Income by Payer — ${monthLabel} ${y}</h3>
+      ${payerHtml}
+      ${payerEntries.length > 1 ? `<div class="payer-row" style="margin-top:8px;border-top:2px solid var(--line);padding-top:12px;"><span class="name" style="font-weight:600;">Total</span><span class="amt" style="font-size:22px;">${fmtMoney(thisMonth.income)}</span></div>` : ''}
+    </div>
+  `;
 }
 
 /* ── Entry CRUD ─────────────────────────────────────────── */
@@ -1116,6 +1324,9 @@ function clearForm() {
   document.getElementById('entry-hours').value = '';
   document.getElementById('entry-quick').value = '';
   document.getElementById('entry-desc').value = '';
+  document.getElementById('entry-amount').value = '';
+  document.getElementById('entry-payer').value = '';
+  document.getElementById('income-fields').style.display = 'none';
   state.selectedCat = null;
   document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
 }
@@ -1126,6 +1337,8 @@ function addEntry() {
   const hours = document.getElementById('entry-hours').value;
   const quick = document.getElementById('entry-quick').value;
   const desc = document.getElementById('entry-desc').value.trim();
+  const amount = document.getElementById('entry-amount').value;
+  const payer = document.getElementById('entry-payer').value.trim();
 
   if (!date) { toast('Pick a date first.', true); return; }
   if (!state.selectedCat) { toast('Choose a category.', true); return; }
@@ -1138,6 +1351,8 @@ function addEntry() {
     category: state.selectedCat,
     hours: parseFloat(hours) || null,
     description: finalDesc,
+    amount: state.selectedCat === 'business' && amount ? parseFloat(amount) : null,
+    payer: state.selectedCat === 'business' ? (payer || null) : null,
     created: new Date().toISOString(),
     modified: new Date().toISOString()
   });
@@ -1184,10 +1399,14 @@ function buildModalEventRow(e, autoEdit) {
 
   const timeLbl = e.startTime ? formatTimeShort(e.startTime) : '';
   const hrsLbl = e.hours ? `${e.hours} hrs` : '';
+  const amountLbl = e.amount ? `$${e.amount.toLocaleString()}` : '';
+  const payerLbl = e.payer || '';
   const meta = [
     e.category ? e.category.toUpperCase() : 'UNCATEGORIZED',
-    [timeLbl, hrsLbl].filter(Boolean).join(' · ')
+    [timeLbl, hrsLbl, amountLbl, payerLbl].filter(Boolean).join(' · ')
   ].filter(Boolean).join(' · ');
+
+  const isBusiness = e.category === 'business';
 
   wrap.innerHTML = `
     <div class="me-view">
@@ -1223,6 +1442,18 @@ function buildModalEventRow(e, autoEdit) {
         <div class="me-edit-cat ${e.category==='maintenance'?'active':''}" data-cat="maintenance">Maintenance</div>
         <div class="me-edit-cat ${e.category==='personal'?'active':''}" data-cat="personal">Personal</div>
       </div>
+      <div class="me-income-fields" style="display:${isBusiness?'block':'none'};">
+        <div class="me-edit-grid">
+          <div>
+            <label class="field-label" style="margin-bottom:6px;">Amount ($)</label>
+            <input type="number" class="input-sm" data-f="amount" min="0" step="0.01" value="${e.amount ?? ''}" placeholder="e.g. 1500" />
+          </div>
+          <div>
+            <label class="field-label" style="margin-bottom:6px;">Payer</label>
+            <input type="text" class="input-sm" data-f="payer" value="${escapeXML(e.payer || '')}" placeholder="Client name" />
+          </div>
+        </div>
+      </div>
       <label class="field-label" style="margin-bottom:6px;">Description</label>
       <textarea class="textarea-sm" data-f="description">${escapeXML(e.description || '')}</textarea>
       <div class="me-edit-actions">
@@ -1246,13 +1477,17 @@ function buildModalEventRow(e, autoEdit) {
     wrap.querySelector('[data-f="startTime"]').value = e.startTime || '09:00';
     wrap.querySelector('[data-f="hours"]').value = e.hours ?? '';
     wrap.querySelector('[data-f="description"]').value = e.description || '';
+    wrap.querySelector('[data-f="amount"]').value = e.amount ?? '';
+    wrap.querySelector('[data-f="payer"]').value = e.payer || '';
     wrap.querySelectorAll('.me-edit-cat').forEach(c =>
       c.classList.toggle('active', c.dataset.cat === e.category));
+    wrap.querySelector('.me-income-fields').style.display = e.category === 'business' ? 'block' : 'none';
   });
   wrap.querySelectorAll('.me-edit-cat').forEach(c => {
     c.addEventListener('click', () => {
       wrap.querySelectorAll('.me-edit-cat').forEach(x => x.classList.remove('active'));
       c.classList.add('active');
+      wrap.querySelector('.me-income-fields').style.display = c.dataset.cat === 'business' ? 'block' : 'none';
     });
   });
   wrap.querySelector('[data-act="save"]').addEventListener('click', () => {
@@ -1260,6 +1495,8 @@ function buildModalEventRow(e, autoEdit) {
     const newStart = wrap.querySelector('[data-f="startTime"]').value || '09:00';
     const newHours = wrap.querySelector('[data-f="hours"]').value;
     const newDesc = wrap.querySelector('[data-f="description"]').value.trim();
+    const newAmount = wrap.querySelector('[data-f="amount"]').value;
+    const newPayer = wrap.querySelector('[data-f="payer"]').value.trim();
     const activeCat = wrap.querySelector('.me-edit-cat.active');
     if (!newDate) { toast('Date required.', true); return; }
 
@@ -1271,6 +1508,8 @@ function buildModalEventRow(e, autoEdit) {
     target.hours = parseFloat(newHours) || null;
     target.description = newDesc || target.description;
     target.category = activeCat ? activeCat.dataset.cat : target.category;
+    target.amount = target.category === 'business' && newAmount ? parseFloat(newAmount) : null;
+    target.payer = target.category === 'business' ? (newPayer || null) : null;
     target.modified = new Date().toISOString();
 
     saveLocal();
@@ -1481,10 +1720,22 @@ function closeBulkModal() {
 /* ── Exports: CSV / XLS / JSON ─────────────────────────── */
 function buildRows() {
   const sorted = [...state.entries].sort((a,b) => a.date.localeCompare(b.date));
-  const headers = ['Date','Day','Start Time','Category','Hours','Description'];
+  const headers = ['Date','Year','Month #','Month Name','Day','Start Time','Category','Hours','Description','Amount','Payer'];
   const rows = sorted.map(e => {
     const d = parseISODate(e.date);
-    return [e.date, DOW[d.getDay()], e.startTime || '', e.category || '', e.hours ?? '', e.description || ''];
+    return [
+      e.date,
+      d.getFullYear(),
+      d.getMonth() + 1,
+      MONTHS[d.getMonth()],
+      DOW[d.getDay()],
+      e.startTime || '',
+      e.category || '',
+      e.hours ?? '',
+      e.description || '',
+      e.amount ?? '',
+      e.payer || ''
+    ];
   });
   return { headers, rows, sorted };
 }
@@ -1496,7 +1747,11 @@ function exportCSV() {
 function exportXLS() {
   const { headers, rows, sorted } = buildRows();
   const tally = { business:0, maintenance:0, personal:0 };
-  sorted.forEach(e => { if (tally[e.category] !== undefined) tally[e.category] += parseFloat(e.hours)||0; });
+  let totalIncome = 0;
+  sorted.forEach(e => {
+    if (tally[e.category] !== undefined) tally[e.category] += parseFloat(e.hours)||0;
+    if (e.category === 'business' && e.amount) totalIncome += parseFloat(e.amount);
+  });
   const totalHrs = tally.business + tally.maintenance + tally.personal;
   const bizPct = totalHrs ? ((tally.business+tally.maintenance)/totalHrs*100).toFixed(1) : '';
 
@@ -1504,7 +1759,10 @@ function exportXLS() {
     `<Cell ss:StyleID="hdr"><Data ss:Type="String">${escapeXML(h)}</Data></Cell>`).join('');
   const dataRows = rows.map(r => {
     const cells = r.map((v,i) => {
-      if (i === 4 && v !== '' && v != null) return `<Cell><Data ss:Type="Number">${v}</Data></Cell>`;
+      // Numeric columns: Year=1, Month#=2, Hours=7, Amount=9
+      if ((i === 1 || i === 2 || i === 7 || i === 9) && v !== '' && v != null) {
+        return `<Cell><Data ss:Type="Number">${v}</Data></Cell>`;
+      }
       return `<Cell><Data ss:Type="String">${escapeXML(v)}</Data></Cell>`;
     }).join('');
     return `<Row>${cells}</Row>`;
@@ -1514,7 +1772,8 @@ function exportXLS() {
     <Row><Cell ss:StyleID="lbl"><Data ss:Type="String">Total Business hrs</Data></Cell><Cell><Data ss:Type="Number">${tally.business}</Data></Cell></Row>
     <Row><Cell ss:StyleID="lbl"><Data ss:Type="String">Total Maintenance hrs</Data></Cell><Cell><Data ss:Type="Number">${tally.maintenance}</Data></Cell></Row>
     <Row><Cell ss:StyleID="lbl"><Data ss:Type="String">Total Personal hrs</Data></Cell><Cell><Data ss:Type="Number">${tally.personal}</Data></Cell></Row>
-    <Row><Cell ss:StyleID="lbl"><Data ss:Type="String">Business + Maintenance %</Data></Cell><Cell><Data ss:Type="String">${bizPct}%</Data></Cell></Row>`;
+    <Row><Cell ss:StyleID="lbl"><Data ss:Type="String">Business + Maintenance %</Data></Cell><Cell><Data ss:Type="String">${bizPct}%</Data></Cell></Row>
+    <Row><Cell ss:StyleID="lbl"><Data ss:Type="String">Total Income ($)</Data></Cell><Cell><Data ss:Type="Number">${totalIncome}</Data></Cell></Row>`;
   const xml = `<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
@@ -1658,6 +1917,8 @@ function generateICS(opts = {}) {
         `Category: ${catLabel}`,
         e.hours ? `Hours: ${e.hours}` : null,
         e.startTime ? `Start: ${e.startTime}` : null,
+        e.amount ? `Amount: $${e.amount}` : null,
+        e.payer ? `Payer: ${e.payer}` : null,
         e.description ? `Description: ${e.description}` : null,
         '',
         'Generated by Vessel Use Logger for Section 179 recordkeeping.'
@@ -1997,6 +2258,8 @@ function init() {
       document.querySelectorAll('.cat-pill').forEach(x => x.classList.remove('active'));
       p.classList.add('active');
       state.selectedCat = p.dataset.cat;
+      document.getElementById('income-fields').style.display =
+        p.dataset.cat === 'business' ? 'block' : 'none';
     });
   });
 
@@ -2025,6 +2288,15 @@ function init() {
     state.viewYear = t.getFullYear();
     state.viewMonth = t.getMonth();
     render();
+  });
+
+  // Daily / Monthly view toggle
+  state.viewMode = localStorage.getItem('vessel-view-mode') || 'daily';
+  applyViewMode();
+  document.getElementById('view-toggle').addEventListener('click', () => {
+    state.viewMode = state.viewMode === 'daily' ? 'monthly' : 'daily';
+    localStorage.setItem('vessel-view-mode', state.viewMode);
+    applyViewMode();
   });
 
   // Day modal
