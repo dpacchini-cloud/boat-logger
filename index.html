@@ -856,6 +856,8 @@
           From Google Calendar settings → your calendar → "Integrate calendar" → "Secret address in iCal format"
         </div>
 
+        <div id="gcal-status-box" style="display:none;padding:12px 14px;margin-bottom:12px;border-radius:2px;border-left:4px solid var(--cat-business);background:rgba(14,116,144,0.08);font-size:13px;line-height:1.5;"></div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
           <button class="btn btn-primary" id="btn-gcal-sync">🔄 Sync Now</button>
           <button class="btn" id="btn-gcal-clear" title="Remove all Google-sourced entries">Clear Imports</button>
@@ -866,7 +868,7 @@
           <span>Auto-sync when I open this page</span>
         </label>
 
-        <div id="gcal-status" class="helper" style="margin-top:10px;"></div>
+        <div id="gcal-status" style="display:none;"></div>
       </div>
 
       <div class="divider"></div>
@@ -897,7 +899,7 @@
           <span class="sync-card-arrow">☁</span>
         </div>
         <div class="sync-card-desc">
-          <b>Blocked days</b> (Maintenance, Personal, and Business you log directly) → labeled "🚫 Boat Unavailable" (no detail revealed). Business events synced from Google Calendar are NOT included (assistant already sees those). Auto-pushed when you log or edit.
+          <b>Every entry</b> (Business, Maintenance, Personal — including events synced from Google) → labeled "🚫 Boat Unavailable" (no detail revealed). Auto-pushed when you log or edit.
         </div>
 
         <label class="field-label">Write Token</label>
@@ -1647,13 +1649,10 @@ function parseTimeParts(hStr, mStr, ampm) {
 function toMin(t) { const [h,m] = t.split(':').map(Number); return h*60+m; }
 
 // Defines which entries appear as "Boat Unavailable" on the assistant's shared calendar.
-// Rule: Maintenance, Personal, and Business events you entered directly in the logger.
-// Excluded: Business events that came from Google Calendar sync (assistant already sees those).
+// Rule: ALL entries (Maintenance, Personal, Business — both manual and Google-synced).
+// All labeled generically as "🚫 Boat Unavailable" for privacy.
 function isBlockingEvent(e) {
-  if (e.category === 'maintenance') return true;
-  if (e.category === 'personal') return true;
-  if (e.category === 'business' && e.source !== 'gcal') return true;
-  return false;
+  return !!e.category;  // any categorized entry blocks the day
 }
 
 function previewBulk() {
@@ -2114,31 +2113,34 @@ const BLOCKS_FEED_URL = 'https://boat-cal-proxy.dpacchini.workers.dev/blocks.ics
 async function syncFromGoogleCalendar(opts = {}) {
   const url = document.getElementById('gcal-url').value.trim();
   const setStatus = (msg, isErr) => {
-    const el = document.getElementById('gcal-status');
-    if (el) {
-      el.innerHTML = msg;
-      el.style.color = isErr ? 'var(--rust)' : 'var(--navy-soft)';
+    const box = document.getElementById('gcal-status-box');
+    if (box) {
+      box.innerHTML = msg;
+      box.style.display = 'block';
+      box.style.borderLeftColor = isErr ? 'var(--rust)' : 'var(--cat-business)';
+      box.style.background = isErr ? 'rgba(180,83,9,0.08)' : 'rgba(14,116,144,0.08)';
+      box.style.color = isErr ? 'var(--rust)' : 'var(--navy)';
     }
   };
 
   if (!url) {
-    if (!opts.silent) setStatus('Paste a Google Calendar iCal URL above.', true);
+    setStatus('<b>No URL set.</b> Paste your Google Calendar iCal URL above.', true);
+    if (!opts.silent) toast('Paste an iCal URL first.', true);
     return false;
   }
 
-  // Validate it looks like a Google Calendar iCal URL
   if (!url.startsWith('https://calendar.google.com/calendar/ical/')) {
     setStatus(
-      'URL must start with <code>https://calendar.google.com/calendar/ical/</code>. ' +
+      '<b>Invalid URL.</b> Must start with <code>https://calendar.google.com/calendar/ical/</code>. ' +
       'Use the "Secret address in iCal format" from Google Calendar settings.',
       true
     );
+    if (!opts.silent) toast('Invalid URL — see status.', true);
     return false;
   }
 
-  setStatus('Syncing…');
+  setStatus('⏳ Syncing…');
 
-  // Route through the Cloudflare Worker proxy
   const proxyUrl = GCAL_PROXY + '?cal=' + encodeURIComponent(url);
 
   try {
@@ -2155,17 +2157,25 @@ async function syncFromGoogleCalendar(opts = {}) {
     const events = parseICS(text);
     const result = mergeGcalEvents(events);
     const parts = [];
-    if (result.added) parts.push(`${result.added} added`);
-    if (result.updated) parts.push(`${result.updated} updated`);
-    if (result.removed) parts.push(`${result.removed} removed`);
-    const summary = parts.length ? parts.join(', ') : 'already up to date';
-    setStatus(`Last synced ${new Date().toLocaleTimeString()} — ${summary}.`);
-    if (!opts.silent && parts.length) toast(`Synced: ${summary}.`);
+    if (result.added) parts.push(`<b>${result.added}</b> added`);
+    if (result.updated) parts.push(`<b>${result.updated}</b> updated`);
+    if (result.removed) parts.push(`<b>${result.removed}</b> removed`);
+
+    const eventCount = events.length;
+    const summary = parts.length
+      ? `✅ <b>Synced at ${new Date().toLocaleTimeString()}.</b><br>${parts.join(', ')}.`
+      : `✅ <b>Synced at ${new Date().toLocaleTimeString()}.</b><br>Google calendar has <b>${eventCount}</b> event${eventCount===1?'':'s'} — all already imported.`;
+    setStatus(summary);
+
+    if (!opts.silent) {
+      if (parts.length) toast(`Synced: ${result.added} added, ${result.updated} updated`);
+      else toast(`Already up to date (${eventCount} events)`);
+    }
     return true;
   } catch(e) {
     console.error('Sync error:', e);
-    setStatus(`<b>Sync failed:</b> ${escapeXML(e.message)}`, true);
-    if (!opts.silent) toast('Sync failed — see status below.', true);
+    setStatus(`<b>❌ Sync failed:</b> ${escapeXML(e.message)}`, true);
+    if (!opts.silent) toast('Sync failed — see status.', true);
     return false;
   }
 }
