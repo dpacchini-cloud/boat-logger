@@ -2180,8 +2180,54 @@ async function syncFromGoogleCalendar(opts = {}) {
   }
 }
 
+// Per-day rate for "Gene Charter": weekday vs weekend
+function geneCharterRate(dateObj) {
+  const dow = dateObj.getDay(); // 0=Sun ... 6=Sat
+  return (dow === 0 || dow === 6) ? 1200 : 800;
+}
+
+// Expand a Google event into a list of per-day occurrences.
+// Returns array of { date:'YYYY-MM-DD', dateObj, isLast }.
+function expandEventDays(ev) {
+  const startDate = new Date(ev.start.date.getFullYear(), ev.start.date.getMonth(), ev.start.date.getDate());
+  let endExclusive;
+
+  if (ev.end) {
+    if (ev.end.allDay) {
+      // All-day DTEND is exclusive (the morning after the last day)
+      endExclusive = new Date(ev.end.date.getFullYear(), ev.end.date.getMonth(), ev.end.date.getDate());
+    } else {
+      // Timed event: include through the end date's calendar day
+      const ed = ev.end.date;
+      endExclusive = new Date(ed.getFullYear(), ed.getMonth(), ed.getDate());
+      // If the end time is past midnight (not exactly 00:00), include that day too
+      if (ed.getHours() !== 0 || ed.getMinutes() !== 0) {
+        endExclusive.setDate(endExclusive.getDate() + 1);
+      }
+    }
+  } else {
+    // No end → single day
+    endExclusive = new Date(startDate);
+    endExclusive.setDate(endExclusive.getDate() + 1);
+  }
+
+  // Safety: ensure at least one day
+  if (endExclusive <= startDate) {
+    endExclusive = new Date(startDate);
+    endExclusive.setDate(endExclusive.getDate() + 1);
+  }
+
+  const days = [];
+  const cursor = new Date(startDate);
+  while (cursor < endExclusive) {
+    days.push({ date: fmtDate(cursor), dateObj: new Date(cursor) });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
+}
+
 function mergeGcalEvents(events) {
-  // Auto-tag as Business, dedup by external UID, detect updates and removals
+  // Expand multi-day events into per-day entries. Auto-revenue for "Gene Charter".
   let added = 0, updated = 0, removed = 0;
 
   const byExtUid = new Map();
@@ -2191,54 +2237,76 @@ function mergeGcalEvents(events) {
   events.forEach(ev => {
     if (!ev.start || ev.status === 'CANCELLED') return;
 
-    const dStr = fmtDate(ev.start.date);
-    let hours = null;
-    let startTime = '09:00';
-    if (!ev.start.allDay) {
-      const sd = ev.start.date;
-      startTime = `${String(sd.getHours()).padStart(2,'0')}:${String(sd.getMinutes()).padStart(2,'0')}`;
-      if (ev.end) {
-        hours = (ev.end.date - ev.start.date) / 3600000;
-        hours = Math.round(hours * 10) / 10;
-      }
-    }
-    const description = ev.summary || ev.description || 'Imported event';
+    const title = (ev.summary || ev.description || 'Imported event').trim();
+    const isGene = title.toLowerCase() === 'gene charter';
+    const isTony = title.toLowerCase() === 'tony charter';
+    const isTonyMonthly = title.toLowerCase() === 'tony monthly';
 
-    if (ev.uid && byExtUid.has(ev.uid)) {
-      const existing = byExtUid.get(ev.uid);
-      seenUids.add(ev.uid);
-      const changed = existing.date !== dStr ||
-                      existing.startTime !== startTime ||
-                      existing.hours !== hours ||
-                      existing.description !== description;
-      if (changed) {
-        existing.date = dStr;
-        existing.startTime = startTime;
-        existing.hours = hours;
-        existing.description = description;
-        existing.modified = new Date().toISOString();
-        updated++;
+    const days = expandEventDays(ev);
+
+    days.forEach(day => {
+      // Composite UID so each day of a multi-day event dedups independently
+      const baseUid = ev.uid || (title + '|' + day.date);
+      const dayUid = `${baseUid}#${day.date}`;
+
+      // All imported days are full days (24h, midnight start)
+      const startTime = '00:00';
+      const hours = 24;
+
+      let amount = null;
+      let payer = null;
+      if (isGene) {
+        amount = geneCharterRate(day.dateObj);
+        payer = 'Gene';
+      } else if (isTonyMonthly) {
+        amount = 500;
+        payer = 'Tony';
+      } else if (isTony) {
+        payer = 'Tony';
       }
-    } else {
-      const newEntry = {
-        id: uid(),
-        externalUid: ev.uid || null,
-        date: dStr,
-        startTime,
-        category: 'business',
-        hours,
-        description,
-        source: 'gcal',
-        created: new Date().toISOString(),
-        modified: new Date().toISOString()
-      };
-      state.entries.push(newEntry);
-      if (ev.uid) {
-        byExtUid.set(ev.uid, newEntry);
-        seenUids.add(ev.uid);
+
+      const description = title;
+
+      if (byExtUid.has(dayUid)) {
+        const existing = byExtUid.get(dayUid);
+        seenUids.add(dayUid);
+        const changed = existing.date !== day.date ||
+                        existing.startTime !== startTime ||
+                        existing.hours !== hours ||
+                        existing.description !== description ||
+                        existing.amount !== amount ||
+                        existing.payer !== payer;
+        if (changed) {
+          existing.date = day.date;
+          existing.startTime = startTime;
+          existing.hours = hours;
+          existing.description = description;
+          existing.amount = amount;
+          existing.payer = payer;
+          existing.modified = new Date().toISOString();
+          updated++;
+        }
+      } else {
+        const newEntry = {
+          id: uid(),
+          externalUid: dayUid,
+          date: day.date,
+          startTime,
+          category: 'business',
+          hours,
+          description,
+          amount,
+          payer,
+          source: 'gcal',
+          created: new Date().toISOString(),
+          modified: new Date().toISOString()
+        };
+        state.entries.push(newEntry);
+        byExtUid.set(dayUid, newEntry);
+        seenUids.add(dayUid);
+        added++;
       }
-      added++;
-    }
+    });
   });
 
   // Remove gcal-sourced entries that no longer appear in the feed
